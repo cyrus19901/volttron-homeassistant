@@ -279,6 +279,7 @@ def DataPub(config_path, **kwargs):
 
                 # internal method to simply publish a point at a given level.
                 def publish_point(topic, point, data):
+                    _log.info("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
                     # makesure topic+point gives a true value.
                     if not topic.endswith('/') and not point.startswith('/'):
                         topic += '/'
@@ -499,7 +500,7 @@ def DataPub(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.vip_main(DataPub, version=__version__)
+    utils.vip_main(DataPub)
 
 if __name__ == '__main__':
     try:

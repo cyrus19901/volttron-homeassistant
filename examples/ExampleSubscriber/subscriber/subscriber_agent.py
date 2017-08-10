@@ -64,9 +64,6 @@ from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
-
-
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.0'
@@ -207,7 +204,8 @@ def subscriber_agent(config_path, **kwargs):
                         }]
             
             #Create messages for specific points
-            oat_message = [oat_reading,{'units': 'F', 'tz': 'UTC', 'type': 'float'}]
+            oat_message = {'OutsideAirTemperature': oat_reading}
+#             oat_message = [oat_reading,{'units': 'F', 'tz': 'UTC', 'type': 'float'}]
             mixed_message = [mixed_reading,{'units': 'F', 'tz': 'UTC', 'type': 'float'}]
             damper_message = [damper_reading,{'units': '%', 'tz': 'UTC', 'type': 'float'}]
             
@@ -218,17 +216,17 @@ def subscriber_agent(config_path, **kwargs):
             }
             
             #Publish messages
-            self.vip.pubsub.publish(
-                'pubsub', all_topic, headers, all_message)
-            
+#             self.vip.pubsub.publish(
+#                 'pubsub', all_topic, headers, all_message)
+#             
             self.vip.pubsub.publish(
                 'pubsub', oat_point, headers, oat_message)
-            
-            self.vip.pubsub.publish(
-                'pubsub', mixed_point, headers, mixed_message)
-            
-            self.vip.pubsub.publish(
-                'pubsub', damper_point, headers, damper_message)
+             
+#             self.vip.pubsub.publish(
+#                 'pubsub', mixed_point, headers, mixed_message)
+#              
+#             self.vip.pubsub.publish(
+#                 'pubsub', damper_point, headers, damper_message)
             
 
 
@@ -236,7 +234,7 @@ def subscriber_agent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.vip_main(subscriber_agent, version=__version__)
+        utils.vip_main(subscriber_agent)
     except Exception as e:
         _log.exception('unhandled exception')
 

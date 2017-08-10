@@ -1,0 +1,14 @@
+{
+
+    "agentid": "HEMS_agent",
+    "message": "Hello HEMS agent",
+    "device": {
+        "campus": "pnnl",
+        "building": "isb1",
+        "unit": {
+        	"AC1": [],
+        	"AC2": [],
+        	"WH1": []        	
+        }
+    } 
+}

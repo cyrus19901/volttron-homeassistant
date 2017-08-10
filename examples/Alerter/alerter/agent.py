@@ -119,7 +119,7 @@ class AlerterAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(AlerterAgent, identity='alerter', version=__version__)
+    utils.vip_main(AlerterAgent, identity='alerter')
 
 
 if __name__ == '__main__':

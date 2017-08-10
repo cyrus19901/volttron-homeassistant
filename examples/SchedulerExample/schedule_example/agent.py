@@ -206,7 +206,7 @@ def schedule_example(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.vip_main(schedule_example, version=__version__)
+        utils.vip_main(schedule_example)
     except Exception as e:
         print e
         _log.exception('unhandled exception')

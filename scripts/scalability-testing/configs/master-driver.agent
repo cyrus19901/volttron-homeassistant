@@ -1,0 +1,8 @@
+{
+    "driver_config_list": [
+        "/home/yingying/git/volttron/scripts/scalability-testing/configs/fake0.config"
+    ],
+    "scalability_test_iterations": 5,
+    "staggered_start": null,
+    "scalability_test": false
+}

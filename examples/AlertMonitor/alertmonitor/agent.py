@@ -120,8 +120,7 @@ class AlertMonitorAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(AlertMonitorAgent, identity='alert.monitor',
-                   version=__version__)
+    utils.vip_main(AlertMonitorAgent, identity='alert.monitor')
 
 
 if __name__ == '__main__':

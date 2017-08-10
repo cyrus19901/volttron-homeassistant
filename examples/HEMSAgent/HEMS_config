@@ -1,0 +1,12 @@
+{
+    "agentid": "HEMS_agent_try",
+    "message": "Hello HEMS agent_try",
+    "device": {
+        "house": "house",
+        "units": {
+        	"AC1": ['AC1_cooling_setpoint', 'AC1_hvac_load'],
+        	"AC2": ['AC2_cooling_setpoint', 'AC2_hvac_load'],
+        	"WH1": ['WH1_cooling_setpoint', 'WH1_actual_load']        	
+        }
+    } 
+}
