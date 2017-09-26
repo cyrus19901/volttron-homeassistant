@@ -1,0 +1,132 @@
+{
+            "devices": {
+                "AC1":  {
+                    "settings": [
+                        {
+                            "name": "preferred_temperature",
+                            "label": "Preferred",
+                            "type": "",
+                            "attributes": [
+                                {
+                                    "name": "temperature",
+                                    "type": "number",
+                                    "units": "F",
+                                    "value": 75
+                                }
+                                
+                            ]
+                        },  
+                        {
+                            "name": "active_setback",
+                            "label": "Active Setback",
+                            "type": "range",
+                            "attributes": [
+                                {
+                                    "name": "min",
+                                    "type": "number",
+                                    "units": "F",
+                                    "value": 65
+                                },
+                                {
+                                    "name": "max",
+                                    "type": "number",
+                                    "units": "F",
+                                    "value": 80
+                                }
+                            ]
+                        }       
+                    ]
+                },
+                "AC2": {
+                    "settings": [
+                        {
+                            "name": "preferred",
+                            "label": "Preferred",
+                            "type": "",
+                            "attributes": [
+                                {
+                                    "name": "temperature",
+                                    "type": "number",
+                                    "units": "F",
+                                    "value": 78
+                                }
+                                
+                            ]
+                        },
+                        {
+                            "name": "active_setback",
+                            "label": "Active Setback",
+                            "type": "range",
+                            "attributes": [
+                                {
+                                    "name": "min",
+                                    "type": "number",
+                                    "units": "F",
+                                    "value": 65
+                                },
+                                {
+                                    "name": "max",
+                                    "type": "number",
+                                    "units": "F",
+                                    "value": 80
+                                }
+                            ]
+                        }           
+                    ]
+                },
+                "WH1": {
+                    "settings": [
+                        {
+                            "name": "max",
+                            "label": "Max",
+                            "type": "",
+                            "attributes": [
+                                {
+                                    "name": "temperature",
+                                    "type": "number",
+                                    "units": "F",
+                                    "value": 150
+                                }
+                                
+                            ]
+                        },
+                        {
+                            "name": "shower_time",
+                            "label": "Shower Time",
+                            "type": "list",
+                            "attributes": [
+                                {
+                                    "type": "time",
+                                    "value": "7:00 A.M."
+                                },
+                                {
+                                    "type": "time",
+                                    "value": "9:00 P.M."
+                                }
+                            ]
+                        }           
+                    ]
+                },
+                "EV": {
+                    "settings": [
+                        {
+                            "name": "charging_time",
+                            "label": "Charging Time",
+                            "type": "range",
+                            "attributes": [
+                                {
+                                    "name": "start",
+                                    "type": "time",
+                                    "value": "20:00 P.M."
+                                },
+                                {
+                                    "name": "end",
+                                    "type": "time",
+                                    "value": "7:00 A.M."
+                                }
+                            ]
+                        }       
+                    ]
+                }
+            }
+        }
