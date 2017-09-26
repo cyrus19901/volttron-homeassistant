@@ -28,8 +28,11 @@ class GetTransactiveAgent(Agent):
 
         super(GetTransactiveAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
-        self.entityId_device = self.config['entityID_device']
-        self.entityId_transactive = self.config['entityID_transactive']
+        self.device_list = self.config['device_list']
+        # self.entityId_transactive_component = self.config['entityID_transactive']
+        self.entityId_transactive_component = 'transactive_home.transactive_home'
+        self.entityId_connectedDevices_component = 'connected_devices.connected_devices'
+        self.entityId_advancedSettings_component = 'advanced_settings.advanced_settings'
         self.url = self.config['url']
         self.data  = []
         self.data2  = []
@@ -41,79 +44,60 @@ class GetTransactiveAgent(Agent):
             Get the current state for loaded components
             from Home Assistant API
         '''
-        if len(self.entityId_device):
-            for device in self.entityId_device:
-                urlState = self.url+'states/'+device
-                req = grequests.get(urlState)
-                results = grequests.map([req])
-                self.data = results[0].text
-                dataObject = json.loads(self.data)
-                deviceName = dataObject['entity_id']
-                pub_topic_currentTemp = 'house/devices/'+deviceName+'/currentTemp'
-                pub_topic_changedTemp = 'house/devices/'+deviceName+'/changedTemp'
-                currentTemp = dataObject['attributes']['current_temperature']
-                temperature = dataObject['attributes']['temperature']
-                now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
-                headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
-                # print(pub_topic_currentTemp)
-                # print(currentTemp)
-                # print(pub_topic_changedTemp)
-                # print(temperature)
-                self.vip.pubsub.publish('pubsub',pub_topic_currentTemp,headers,currentTemp) 
-                self.vip.pubsub.publish('pubsub',pub_topic_changedTemp,headers,temperature) 
-        self.setWillingness()
+        self.urlServices_transactive = self.url+'states/'+ self.entityId_connectedDevices_component 
+        self.urlServices_advanced_settings = self.url+'states/'+ self.entityId_advancedSettings_component
+        while True:
+            self.setWillingness()
+            self.setEnergyReduction()
+        
 
 
     def setWillingness(self):   
 
-        urlStates = self.url+'states'
-        while True:
-            req = grequests.get(urlStates)
-            results = grequests.map([req])
-            self.data2 = results[0].text
-            dataObject = json.loads(self.data2)
-            deviceName = dataObject[2]["attributes"]["devices"]
-            advancedSettingSaving = dataObject[1]["attributes"]["energySavings"]["goal"]
-            advancedSettingSavingEndtime = dataObject[1]["attributes"]["savingsEndTime"]
-            advancedSettingSavingStarttime = dataObject[1]["attributes"]["savingsStartTime"]
-            print("---------------------------------------------------------------------")
-            print(advancedSettingSaving)
-            print(advancedSettingSavingEndtime)
-            print(advancedSettingSavingStarttime)
-            gevent.sleep(5)
-            # print(dataObject)
-            for value in  dataObject[2]["attributes"]["devices"]:
-                # print(value)
-                flexibility = dataObject[2]["attributes"]["devices"][str(value)]["flexibility"]
-                if (flexibility == "low"):
-                    self.willingness = 8
-                if (flexibility == "medium"):
-                    self.willingness = 5
-                if (flexibility == "high"):
-                    self.willingness = 2
-            self.data = results[0].text
-            dataObject = json.loads(self.data)
-            print(dataObject)
-            # deviceName = dataObject[0]["attributes"]["devices"]
-            time.sleep(5)
-            for value in  dataObject[3]["attributes"]["devices"]:
-                print(value)
-                flexibility = dataObject[3]["attributes"]["devices"][str(value)]["flexibility"]
-                if (flexibility == "low"):
-                    self.willingness = 2
-                if (flexibility == "medium"):
-                    self.willingness = 5
-                if (flexibility == "high"):
-                    self.willingness = 8
-                pub_topic = 'house/'+ value+'/'+value+'_beta'
-                print("-----------------------------------------")
-                print(pub_topic)
-                print(self.willingness)
-                now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
-                headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
-                self.vip.pubsub.publish('pubsub',pub_topic,headers,self.willingness)         
-                self.vip.pubsub.publish('pubsub',pub_topic,headers,self.willingness)    
+        urlStates = self.urlServices_transactive
+        req = grequests.get(urlStates)
+        results = grequests.map([req])
+        self.data2 = results[0].text
+        dataObject = json.loads(self.data2)
+        for value in  dataObject["attributes"]["devices"]:
+            flexibility = dataObject["attributes"]["devices"][str(value)]["flexibility"]
+            if (flexibility == "low"):
+                self.willingness = 8
+            if (flexibility == "medium"):
+                self.willingness = 5
+            if (flexibility == "high"):
+                self.willingness = 2
+            pub_topic = 'house/'+ value+'/'+value+'_beta'
+            print("-----------------------------------------")
+            print(pub_topic)
+            print(self.willingness)
+            now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+            headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
+            self.vip.pubsub.publish('pubsub',pub_topic,headers,self.willingness)        
+            # self.vip.pubsub.publish('pubsub',pub_topic,headers,self.willingness) 
+        gevent.sleep(5) 
         
+
+    def setEnergyReduction(self):   
+
+        urlStates = self.urlServices_advanced_settings
+        req = grequests.get(urlStates)
+        results = grequests.map([req])
+        self.data2 = results[0].text
+        dataObject = json.loads(self.data2)
+        energyReduction = float(dataObject['attributes']['energySavings']['value'])
+        pub_topic = 'house/energy_reduction'
+        print("-----------------------------------------")
+        print(pub_topic)
+        print(energyReduction)
+        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+        headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
+        self.vip.pubsub.publish('pubsub',pub_topic,headers,energyReduction)         
+        # self.vip.pubsub.publish('pubsub',pub_topic,headers,self.willingness) 
+        gevent.sleep(5) 
+
+
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
