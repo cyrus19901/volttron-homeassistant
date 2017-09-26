@@ -43,6 +43,7 @@ def HEMS_agent(config_path, **kwargs):
     device_setpoint_topic_dict = {}
     device_setpoint_val_dict = {}
     device_setpoint_val_ori_dict = {}
+    diff = {}
     # load consumption related values initialization
     device_load_topic_dict = {}
     device_load_val_dict = {}
@@ -62,6 +63,7 @@ def HEMS_agent(config_path, **kwargs):
         device_setpoint_dict.update({device_name: setpointName})
         device_setpoint_val_dict.update({device_name: 0.0})
         device_setpoint_val_ori_dict.update({device_name: 0.0})
+        diff.update({device_name: 0.0})
                
         # Load topic full path
         loadName = device_config[device_name][1]
@@ -116,8 +118,8 @@ def HEMS_agent(config_path, **kwargs):
             
             currTime = datetime.datetime.now()
             
-            # Total scheduled energy reduction (kWh)
-            self.P_total = 2.0
+            # Total scheduled energy reduction (kWh) by default
+            self.P_total = 7.0
             
             # Initialize subscription function to change setpoints
             for device_name in device_setpoint_topic_dict:
@@ -126,6 +128,13 @@ def HEMS_agent(config_path, **kwargs):
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=setpoint_topic,
                                           callback=self.on_receive_setpoint_message_fncs)
+            
+            # Initialize subscription function to energy reduction amount
+            _log.info('Subscribing to ' + device_beta_topic_dict[device_name])
+            P_topic = house + '/energy_reduction' 
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=P_topic,
+                                  callback=self.on_receive_energy_reduction_message_fncs)
             
             # Initialize subscription function to change beta values
             for device_name in device_beta_topic_dict:
@@ -146,7 +155,8 @@ def HEMS_agent(config_path, **kwargs):
                 self.loadChangeTime[device_name] = currTime
                 self.energyPeriodCalculated[device_name] = False
             
-            #Set energy consumption time starts at 14 minutes after simulation begins, and lasts for 3 minutes
+                        
+            # Set energy consumption time starts at 14 minutes after simulation begins, and lasts for 3 minutes
             _log.info('Simulation starts from: {}.'.format(str(currTime)))
             self.startEnergyReduction = currTime + datetime.timedelta(minutes=14)
             self.endEnergyReduction = currTime + datetime.timedelta(minutes=17)
@@ -155,6 +165,10 @@ def HEMS_agent(config_path, **kwargs):
             self.energyReduced = False
             self.energyPeriodCalculated = False
             self.energyCalTime = currTime
+            
+            # Conduct optimization problem with the default beta values, at the begining of the simulations
+            self.energy_reduction()
+
                         
         def on_receive_setpoint_message_fncs(self, peer, sender, bus, topic, headers, message):
             """Subscribe to appliance setpoint and change the data accordingly 
@@ -178,16 +192,23 @@ def HEMS_agent(config_path, **kwargs):
             # Update device beta value
             beta = message
             device_beta_dict.update({device: beta})
-            _log.info('Unit {0:s} beta value changed to {1} at time {2} '.format(device, beta, str(datetime.datetime.now())))   
+            _log.info('Unit {0:s} beta value changed to {1} at time {2} '.format(device, beta, str(datetime.datetime.now())))  
             
-            # # Need to re-conduct optimization if the slider bar is adjusted during the energy reduction period
-            # if (self.energyReduced == true) and (datetime.datetime.now() > self.startEnergyReduction) and (datetime.datetime.now() < self.endEnergyReduction):
-               
-            #     # Recalculate the total energy reduction as the input for the optimization
-            #     self.P_total = self.P_total - sum(device_energy_dict_Period.values())
-
-            #     # re-conduct optimization
-            #     self.energy_reduction()
+            # Re-conduct optimization problem with the updated beta values, only before energy reduction happens
+            if (self.energyReduced == False) :
+                # re-conduct optimization
+                self.energy_reduction()
+        
+        def on_receive_energy_reduction_message_fncs(self, peer, sender, bus, topic, headers, message):
+            """Subscribe to appliance setpoint and change the data accordingly 
+            """    
+            # Update energy reduction value
+            self.P_total = float(message)
+            
+            # Re-conduct optimization problem with the updated energy reduction values, only before energy reduction happens
+            if (self.energyReduced == False) :
+                # re-conduct optimization
+                self.energy_reduction()
                 
             
         @Core.periodic(1)
@@ -198,7 +219,7 @@ def HEMS_agent(config_path, **kwargs):
             if (self.energyReduced == False) and (datetime.datetime.now() >= self.startEnergyReduction):
                 _log.info('Energy reduction begins at time {} '.format(str(datetime.datetime.now())))
                 self.energyReduced = True # Set flag so that setpoint updates for energy reduction only changes once
-                self.energy_reduction()
+                self.publish_setpoint()
             
             # Check if energy reduction time ends
             if (datetime.datetime.now() >= self.endEnergyReduction) and (self.energyPeriodCalculated == False):
@@ -290,7 +311,7 @@ def HEMS_agent(config_path, **kwargs):
         def energy_reduction(self): 
             
             # variable related to discomfort settings
-            lambda_E = 0.5
+            lambda_E = 0.1
 
 #             beta_1 = 9.0
 #             beta_2 = 12.0
@@ -323,12 +344,23 @@ def HEMS_agent(config_path, **kwargs):
                                   
             # solve the optimization problem
             P = matrix([[float(6*beta_1), 0.0, 0.0], [0.0, float(6*beta_2), 0.0], [0.0, 0.0, float(6*beta_3)]])
-            q = matrix([-lambda_E, -lambda_E, -lambda_E])
+            q = matrix([-3 * lambda_E, -3 * lambda_E, -3 *lambda_E])
             G = matrix([[-1.0, 1.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, -1.0, 1.0]])
             h = matrix([0, P_rec1_max, 0, P_rec2_max, 0, P_rec3_max])
             A = matrix([3.0, 3.0, 3.0], (1, 3))
-            b = matrix(self.P_total)
-            sol = solvers.qp(P,q,G,h,A,b)
+#             b = matrix(self.P_total)
+            while True:
+                try:
+                    b = matrix(self.P_total)
+                    sol = solvers.qp(P,q,G,h,A,b)
+                    if sol['dual infeasibility'] != float("inf") and (sol['x'][0] <= P_rec1_max and sol['x'][1] <= P_rec2_max and sol['x'][2] <= P_rec3_max):
+                        break
+                    else:
+                        self.P_total = self.P_total - 1
+                except ValueError:
+                       _log.info('The energy reduction requirement {0:f} kWh cannot be met, changed to {1:f}  kWh by default'.format(self.P_total, self.P_total - 1))
+                       self.P_total = self.P_total - 1
+
 #             print(sol['x'])
             
             now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
@@ -336,24 +368,54 @@ def HEMS_agent(config_path, **kwargs):
                 headers_mod.DATE: now
             }
             
-            index = 0
+            # Publish the calculated minimum compensation for the occupant
+            _log.info('Total minimum compensation for the occupant with chosen preferences [{1:f}, {2:f}, {3:f}] is {0:f} $'.format(sol['primal objective'], beta_1, beta_2, beta_3))
+            pub_topic = 'fncs/input/house/minimum_disutility'
+            self.vip.pubsub.publish('pubsub', pub_topic, headers, sol['primal objective'])
+            
+            # Publish the total energy reduction expected
+            _log.info('Total energy reduction is {0:f} kWh'.format(self.P_total))
+            pub_topic = 'fncs/input/house/energy_reduction'
+            self.vip.pubsub.publish('pubsub', pub_topic, headers, self.P_total)
+            
+            listApp = ['AC1', 'AC2', 'WH1']
             for device_name in device_setpoint_dict:
-                setpoint = device_setpoint_val_dict[device_name]
+                index = listApp.index(device_name) # FInd the index of the appliance in the solution list
+#                 setpoint = device_setpoint_val_dict[device_name]
                 if 'parameters' in config['device']: 
                     setpoint_list = device_para[device_name]['setpoint_delta']
                     power_list = device_para[device_name]['power_delta']
                     interp_func = interp1d(power_list, setpoint_list)
-                    diff = interp_func(-sol['x'][index]*3)
+                    diff[device_name] = interp_func(-sol['x'][index]*3)
                 else:
-                    diff = sol['x'][index]*3/Coefficient[index]
-#                 diff = 0
+                    diff[device_name] = sol['x'][index]*3/Coefficient[index]
+#                 diff[device_name] = 0
+#                 device_setpoint_val_ori_dict.update({device_name: setpoint})
+#                 device_setpoint_val_dict.update({device_name: setpoint + diff[device_name]})
+#                 # Publish the changed setpoints:
+#                 pub_topic = 'fncs/input/house/' + device_name + '/' + device_setpoint_dict[device_name]
+#                 _log.info('HEMS agent publishes updated setpoints {0} to unit {1:s} with topic: {2}'.format(setpoint + diff, device_name, pub_topic))
+#                 self.vip.pubsub.publish('pubsub', pub_topic, headers, setpoint + diff)
+                
+        
+        def publish_setpoint(self): 
+            
+            # At the energy reduction time, publish the changed setpoints based on optimization function
+            now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+            headers = {
+                headers_mod.DATE: now
+            }
+
+            for device_name in device_setpoint_dict:
+                # First update the setpoints based on cauclated setpoint change from optimization problem
+                setpoint = device_setpoint_val_dict[device_name]
                 device_setpoint_val_ori_dict.update({device_name: setpoint})
-                device_setpoint_val_dict.update({device_name: setpoint + diff})
+                device_setpoint_val_dict.update({device_name: setpoint + diff[device_name]})
                 # Publish the changed setpoints:
                 pub_topic = 'fncs/input/house/' + device_name + '/' + device_setpoint_dict[device_name]
-                _log.info('HEMS agent publishes updated setpoints {0} to unit {1:s} with topic: {2}'.format(setpoint + diff, device_name, pub_topic))
-                self.vip.pubsub.publish('pubsub', pub_topic, headers, setpoint + diff)
-                index += 1           
+                _log.info('HEMS agent publishes updated setpoints {0} to unit {1:s} with topic: {2}'.format(device_setpoint_val_dict[device_name], device_name, pub_topic))
+                self.vip.pubsub.publish('pubsub', pub_topic, headers, setpoint + diff[device_name])
+                
                 
     Agent.__name__ = 'HEMSAgent'    
     return HEMS_agent_test(**kwargs)
