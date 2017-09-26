@@ -119,7 +119,7 @@ def HEMS_agent(config_path, **kwargs):
             currTime = datetime.datetime.now()
             
             # Total scheduled energy reduction (kWh) by default
-            self.P_total = 7.0
+            self.P_total = 2.0
             
             # Initialize subscription function to change setpoints
             for device_name in device_setpoint_topic_dict:

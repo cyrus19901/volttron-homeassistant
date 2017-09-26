@@ -68,7 +68,7 @@ class TransactiveAgent(Agent):
             minute = timedelta(days=0,seconds=1728,microseconds=0)
             future = future + minute
             self.energyDict['times'].append(future.isoformat())
-        with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/Transactive_data.json') as data_file: 
+        with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/data_set.json') as data_file: 
             data_historical = json.load(data_file)
             for i in data_historical['data']:
                 self.energyDict['series']['transactive']['points'].append(float(i['kWh']))
