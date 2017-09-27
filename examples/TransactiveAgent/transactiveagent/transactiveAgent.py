@@ -57,9 +57,9 @@ class TransactiveAgent(Agent):
         self.count=0
         self.energyDict = {'series':[],'times':[]}
         energySeries = {'actual':[],'historical':[],'transactive':[]}
-        energySeries['actual'] = { 'color':'#FF7F50','label':'actual','line-style':'dash','points':[]}
-        energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'dash','points':[]}
-        energySeries['transactive'] = { 'color':'ForestGreen','label':'transactive','line-style':'dash','points':[]}
+        energySeries['actual'] = { 'color':'#ffa450','label':'actual','line-style':'dash','points':[]}
+        energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'line','points':[]}
+        energySeries['transactive'] = { 'color':'#1b6630','label':'transactive','line-style':'dash','points':[]}
         self.energyDict['series']= energySeries
         now = datetime.datetime.now()
         future=now
@@ -68,14 +68,17 @@ class TransactiveAgent(Agent):
             minute = timedelta(days=0,seconds=1728,microseconds=0)
             future = future + minute
             self.energyDict['times'].append(future.isoformat())
+
         with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/data_set.json') as data_file: 
             data_historical = json.load(data_file)
             for i in data_historical['data']:
                 self.energyDict['series']['transactive']['points'].append(float(i['kWh']))
+
         with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/Transactive_data.json') as data_file:   
             data_transactive = json.load(data_file)
             for i in data_transactive['data']:
                 self.energyDict['series']['historical']['points'].append(float(i['kWh']))
+
         for i in range(1,50):
             self.energyDict['series']['actual']['points'].append(None)
 # Initiate the json in the beginning of the code
@@ -111,6 +114,32 @@ class TransactiveAgent(Agent):
         future=self.startTime
         # minute = timedelta(days=0,seconds=60,microseconds=0)
         future = future + timedelta(minutes=1)
+        urlServices_transactive = self.url+'states/'+ self.entityId_transactive_component 
+        urlServices_connected_devices = self.url+'states/'+ self.entityId_connectedDevices_component
+        urlServices_advance_settings = self.url+'states/'+ self.entityId_advancedSetting_component
+        urlServices_wholehouse_energy_useandcost = self.url+'states/'+ self.entityId_wholeHouse_component
+        urlServices_user_settings = self.url+'states/'+ self.entityId_user_settings_component
+
+        req_user_settings = grequests.get(urlServices_user_settings)
+        results_user_settings = grequests.map([req_user_settings])
+        data_user_settings = results_user_settings[0].text
+        dataObject_user_sett = json.loads(data_user_settings)
+        
+        req_advanced_settings = grequests.get(urlServices_advance_settings)
+        results_advanced_settings = grequests.map([req_advanced_settings])
+        data_advanced_settings = results_advanced_settings[0].text
+        dataObject_advanced_settings = json.loads(data_advanced_settings)
+
+        req_wholehouse_energy_useandcost = grequests.get(urlServices_wholehouse_energy_useandcost)
+        results_wholehouse_energy_useandcost = grequests.map([req_wholehouse_energy_useandcost])
+        data_wholehouse_energy_useandcost = results_wholehouse_energy_useandcost[0].text
+        dataObject_wholehouse_energy_useandcost = json.loads(data_wholehouse_energy_useandcost)
+        
+        req_connected_devices = grequests.get(urlServices_connected_devices)
+        results_connected_devices = grequests.map([req_connected_devices])
+        data_connected_devices = results_connected_devices[0].text
+        dataObject_connected = json.loads(data_connected_devices)
+
         # print("===========================")
         # print(datetime.datetime.utcnow())
         # print(future)
@@ -121,48 +150,10 @@ class TransactiveAgent(Agent):
             zone_min =0
             device_name = topic.partition('/')[-1].rpartition('/')[0]
 
-            urlServices_transactive = self.url+'states/'+ self.entityId_transactive_component 
-            urlServices_connected_devices = self.url+'states/'+ self.entityId_connectedDevices_component
-            urlServices_advance_settings = self.url+'states/'+ self.entityId_advancedSetting_component
-            urlServices_wholehouse_energy_useandcost = self.url+'states/'+ self.entityId_wholeHouse_component
-            urlServices_user_settings = self.url+'states/'+ self.entityId_user_settings_component
-
-            req_user_settings = grequests.get(urlServices_user_settings)
-            results_user_settings = grequests.map([req_user_settings])
-            data_user_settings = results_user_settings[0].text
-            dataObject_user_sett = json.loads(data_user_settings)
-            
-            req_advanced_settings = grequests.get(urlServices_advance_settings)
-            results_advanced_settings = grequests.map([req_advanced_settings])
-            data_advanced_settings = results_advanced_settings[0].text
-            dataObject_advanced_settings = json.loads(data_advanced_settings)
-
-            req_wholehouse_energy_useandcost = grequests.get(urlServices_wholehouse_energy_useandcost)
-            results_wholehouse_energy_useandcost = grequests.map([req_wholehouse_energy_useandcost])
-            data_wholehouse_energy_useandcost = results_wholehouse_energy_useandcost[0].text
-            dataObject_wholehouse_energy_useandcost = json.loads(data_wholehouse_energy_useandcost)
-            
-            req_connected_devices = grequests.get(urlServices_connected_devices)
-            results_connected_devices = grequests.map([req_connected_devices])
-            data_connected_devices = results_connected_devices[0].text
-            dataObject_connected = json.loads(data_connected_devices)
-
-
             with open('/home/yingying/git/volttron/examples/TransactiveAgent/config_devices') as device_file: 
                 device_dictionary = json.load(device_file)
                 print(device_dictionary)
             self.ChangeUserSettings(device_dictionary)
-            energyCost_transactive=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['transactive']
-            energyCost_maximum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['maximum']
-            energyCost_mimimum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['minimum']
-            energyUse_maximum=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['maximum']
-            energyUse_minimum=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['minimum']
-            energyUse_transactive=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['transactive']
-            if (topic == 'fncs/input/house/energy_reduction'):
-                energyUse_transactive=str(float(round(message,2)))
-            if (topic == 'fncs/input/house/minimum_disutility'):
-                energyCost_transactive = str(float(round(message,2)))
-            self.ChangeWholeHouseEnergyState(energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive)
 
             if (topic == 'house/'+ device_name +'/all'):
                 now = datetime.datetime.now()
@@ -236,6 +227,18 @@ class TransactiveAgent(Agent):
                 gevent.sleep(10)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
+        energyCost_transactive=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['transactive']
+        energyCost_maximum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['maximum']
+        energyCost_mimimum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['minimum']
+        energyUse_maximum=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['maximum']
+        energyUse_minimum=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['minimum']
+        energyUse_transactive=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['transactive']
+        if (topic == 'fncs/input/house/energy_reduction'):
+            energyUse_transactive=str(float(round(message,2)))
+        if (topic == 'fncs/input/house/minimum_disutility'):
+            energyCost_transactive = str(float(round(message,2)))
+        self.ChangeWholeHouseEnergyState(energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive)
+
 
     def ChangeTransactiveState(self,overall_energy,overall_power,energyDataPlot,flexibility,zone_max,zone_min):
 
