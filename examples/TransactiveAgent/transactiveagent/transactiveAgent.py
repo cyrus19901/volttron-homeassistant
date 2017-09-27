@@ -108,11 +108,7 @@ class TransactiveAgent(Agent):
         ''' This method subscibes to all topics. It simply prints out the 
         topic seen.
         # '''
-        # print("-------------------------")
-        # print(headers['TimeStamp'])
-
         future=self.startTime
-        # minute = timedelta(days=0,seconds=60,microseconds=0)
         future = future + timedelta(minutes=1)
         urlServices_transactive = self.url+'states/'+ self.entityId_transactive_component 
         urlServices_connected_devices = self.url+'states/'+ self.entityId_connectedDevices_component
@@ -140,9 +136,6 @@ class TransactiveAgent(Agent):
         data_connected_devices = results_connected_devices[0].text
         dataObject_connected = json.loads(data_connected_devices)
 
-        # print("===========================")
-        # print(datetime.datetime.utcnow())
-        # print(future)
         if ((datetime.datetime.utcnow()) >= future):
             totalEnergy = 0
             totalPower = 0
