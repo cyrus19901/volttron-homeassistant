@@ -57,8 +57,8 @@ class TransactiveAgent(Agent):
         self.count=0
         self.energyDict = {'series':[],'times':[]}
         energySeries = {'actual':[],'historical':[],'transactive':[]}
-        energySeries['actual'] = { 'color':'#ffa450','label':'actual','line-style':'dash','points':[]}
-        energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'line','points':[]}
+        energySeries['actual'] = { 'color':'#ffa450','label':'actual','line-style':'line','points':[]}
+        energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'dash','points':[]}
         energySeries['transactive'] = { 'color':'#1b6630','label':'transactive','line-style':'dash','points':[]}
         self.energyDict['series']= energySeries
         now = datetime.datetime.now()
@@ -381,7 +381,7 @@ class TransactiveAgent(Agent):
                             },
                             "timePeriodEnd":timePeriodEnd,
                             "energySavings": {
-                                "units": "Kw",
+                                "units": "Kwh",
                                 "value": energySavingValue,
                                 "label":""
                             },
@@ -404,7 +404,6 @@ class TransactiveAgent(Agent):
                         "attributes":device_dictionary,
                         "state": self.new_state
                     })
-                print(jsonMsg)
                 header = {'Content-Type': 'application/json'}
                 # requests.post(urlServices, data = jsonMsg, headers = header)
                 # print("Advanced Setting State has been changed")
