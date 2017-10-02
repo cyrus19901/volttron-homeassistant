@@ -45,8 +45,8 @@ class TransactiveAgent(Agent):
             self.energyPoint[d]=[]
             self.powerPoint[d]=[]
         self.startTime= datetime.datetime.utcnow()
-        self.energyDevicesStatusesDict={'series':[],'times':[]}
-        self.powerDevicesStatusesDict={'series':[],'times':[]}
+        self.energyDevicesStatusesDict={'series':[],'times':[],'time-format': 'h:mm a'}
+        self.powerDevicesStatusesDict={'series':[],'times':[],'time-format': 'h:mm a'}
         self.entityId_transactive_component = 'transactive_home.transactive_home'
         self.entityId_connectedDevices_component = 'connected_devices.connected_devices'
         self.entityId_wholeHouse_component = 'whole_house_energy.wholehouse_energy_use_and_cost'
@@ -65,9 +65,12 @@ class TransactiveAgent(Agent):
         future=now
         urlServices = self.url+'states/'+ self.entityId_connectedDevices_component
         for i in range(1,50):
-            minute = timedelta(days=0,seconds=1728,microseconds=0)
+            minute = timedelta(days=6,seconds=0,microseconds=0)
             future = future + minute
             self.energyDict['times'].append(future.isoformat())
+
+        for i in range(1,50):
+            self.energyDict['series']['actual']['points'].append(None)
 
         with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/data_set.json') as data_file: 
             data_historical = json.load(data_file)
@@ -79,8 +82,7 @@ class TransactiveAgent(Agent):
             for i in data_transactive['data']:
                 self.energyDict['series']['historical']['points'].append(float(i['kWh']))
 
-        for i in range(1,50):
-            self.energyDict['series']['actual']['points'].append(None)
+
 # Initiate the json in the beginning of the code
         for device_list in self.deviceList:
             device_json = {
@@ -197,21 +199,13 @@ class TransactiveAgent(Agent):
                     totalPower += load_value
                 self.ChangeDeviceStatuses(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict)
                 self.ChangeConnectedDevicesState(self.deviceDictionary)
-                powerSavingValue = dataObject_advanced_settings['attributes']['powerSavings']['value']
-                energySavingValue = dataObject_advanced_settings['attributes']['energySavings']['value']
-                savingStartTime = dataObject_advanced_settings['attributes']['savingsStartTime']
-                savingEndTime = dataObject_advanced_settings['attributes']['savingsEndTime']
-                timePeriodStart = dataObject_advanced_settings['attributes']['timePeriodStart']
-                timePeriodEnd = dataObject_advanced_settings['attributes']['timePeriodEnd']
-                incentives = dataObject_advanced_settings['attributes']['incentives']['value']
-                self.ChangeAdvancedSettings(powerSavingValue,energySavingValue,savingStartTime,savingEndTime,timePeriodStart,timePeriodEnd,incentives)
-
                 if (self.energyDict['series']['actual']['points'][self.count] == None):
                     self.energyDict['series']['actual']['points'][self.count] =round(totalEnergy,2)
                     self.energyDict['series']['transactive']['points'][self.count] =round(totalEnergy,2)
                     print("the first entry deleted")
                 energyDataPlot = {
                     "series":self.energyDict['series'],
+                    "time-format": "MM/DD",
                     "times":self.energyDict['times']
                 } 
                 if (self.count == 50):
@@ -220,6 +214,16 @@ class TransactiveAgent(Agent):
                 gevent.sleep(10)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
+
+        powerSavingValue = dataObject_advanced_settings['attributes']['powerSavings']['value']
+        energySavingValue = dataObject_advanced_settings['attributes']['energySavings']['value']
+        savingStartTime = dataObject_advanced_settings['attributes']['savingsStartTime']
+        savingEndTime = dataObject_advanced_settings['attributes']['savingsEndTime']
+        timePeriodStart = dataObject_advanced_settings['attributes']['timePeriodStart']
+        timePeriodEnd = dataObject_advanced_settings['attributes']['timePeriodEnd']
+        incentives = dataObject_advanced_settings['attributes']['incentives']['value']
+        self.ChangeAdvancedSettings(powerSavingValue,energySavingValue,savingStartTime,savingEndTime,timePeriodStart,timePeriodEnd,incentives)
+
         energyCost_transactive=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['transactive']
         energyCost_maximum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['maximum']
         energyCost_mimimum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['minimum']
@@ -229,8 +233,8 @@ class TransactiveAgent(Agent):
         if (topic == 'fncs/input/house/energy_reduction'):
             energyUse_transactive=str(float(round(message,2)))
         if (topic == 'fncs/input/house/minimum_disutility'):
-            energyCost_transactive = str(float(round(message,2)))
-        self.ChangeWholeHouseEnergyState(energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive)
+            energyCost_transactive = "$"+str(float(round(message,2)))
+        self.ChangeWholeHouseEnergyState(energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive,energySavingValue)
 
 
     def ChangeTransactiveState(self,overall_energy,overall_power,energyDataPlot,flexibility,zone_max,zone_min):
@@ -245,7 +249,7 @@ class TransactiveAgent(Agent):
                         "chartSeries":[{
                             "data": energyDataPlot,
                             "type": "line",
-                            "label": "energy",
+                            "label": "Energy (Kwh)",
                             "id": "transactive-home"
                         }
                         ],
@@ -253,7 +257,7 @@ class TransactiveAgent(Agent):
                         "measures":[
                         {
                             "label":"Overall Energy",
-                            "unit":"kw-hr/24 hrs",
+                            "unit":"kwh",
                             "value":overall_energy
                         },
                         {
@@ -316,14 +320,14 @@ class TransactiveAgent(Agent):
                             "chartSeries":[{
                                 "data":energyDevicesStatusesDict,
                                 "id":"device-energy",
-                                "label":"energy(Kwh)",
+                                "label":"Energy (Kwh)",
                                 "type":"bar",
                                 "updateMethod":"update_chart_type"
                                 },
                                 {
                                 "data":powerDevicesStatusesDict,
                                 "id":"device-power",
-                                "label":"power(Kw)",
+                                "label":"Power (Kw)",
                                 "type":"bar",
                                 "updateMethod":"update_chart_type"
                             }],
@@ -411,7 +415,7 @@ class TransactiveAgent(Agent):
                     pass
 
 
-    def ChangeWholeHouseEnergyState(self,energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive):
+    def ChangeWholeHouseEnergyState(self,energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive,energySavingValue):
 
             if self.entityId_wholeHouse_component is None:
                 return
@@ -427,7 +431,7 @@ class TransactiveAgent(Agent):
                                 "transactive":energyCost_transactive
                             },
                             "energyUse":{
-                                "maximum":energyUse_maximum,
+                                "maximum":str(energySavingValue),
                                 "minimum":energyUse_minimum,
                                 "transactive":energyUse_transactive
                             }
