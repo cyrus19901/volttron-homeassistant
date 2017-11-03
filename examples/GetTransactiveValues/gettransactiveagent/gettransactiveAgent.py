@@ -34,6 +34,8 @@ class GetTransactiveAgent(Agent):
         self.entityId_connectedDevices_component = 'connected_devices.connected_devices'
         self.entityId_advancedSettings_component = 'advanced_settings.advanced_settings'
         self.entityId_userSettings_component = 'user_settings.user_settings'
+        self.entityId_climate_heatpump = 'climate.heatpump'
+
         self.url = self.config['url']
         self.data  = []
         self.data2  = []
@@ -48,11 +50,36 @@ class GetTransactiveAgent(Agent):
         self.urlServices_transactive = self.url+'states/'+ self.entityId_connectedDevices_component 
         self.urlServices_advanced_settings = self.url+'states/'+ self.entityId_advancedSettings_component
         self.urlServices_user_settings = self.url+'states/'+ self.entityId_userSettings_component
+
+        #new addition for devices from the HA side 
+        self.urlServices_climate_heatpump = self.url+'states/'+ self.entityId_climate_heatpump
+        print(self.urlServices_climate_heatpump)        
         while True:
             self.setWillingness()
             self.setEnergyReduction()
             self.sendDeviceList()
+            self.sendDeviceFromHA()
+            # gevent.sleep(1)
         
+    # @PubSub.subscribe('pubsub', '')
+    # def on_match_all(self, peer, sender, bus,  topic, headers, message):
+
+    #     print(topic)
+
+    def sendDeviceFromHA(self):
+
+        urlStates = self.urlServices_climate_heatpump
+        req = grequests.get(urlStates)
+        results = grequests.map([req])
+        data = results[0].text
+        dataObject = json.loads(data)
+        devicename =(dataObject['attributes']['friendly_name'])
+        pub_topic = 'devices/all/'+ devicename + '/office/skycentrics'
+        print (pub_topic)
+        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+        headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
+        self.vip.pubsub.publish('pubsub',pub_topic,headers,dataObject)         
+        # gevent.sleep(1) 
 
     def sendDeviceList(self):   
 
@@ -70,7 +97,7 @@ class GetTransactiveAgent(Agent):
             now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
             headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
             self.vip.pubsub.publish('pubsub',pub_topic,headers,settings)         
-        gevent.sleep(5) 
+        gevent.sleep(.5) 
 
     def setWillingness(self):   
 
@@ -94,7 +121,7 @@ class GetTransactiveAgent(Agent):
             now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
             headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
             self.vip.pubsub.publish('pubsub',pub_topic,headers,willingness)        
-        gevent.sleep(5) 
+        gevent.sleep(.5) 
         
 
     def setEnergyReduction(self):   
@@ -112,7 +139,7 @@ class GetTransactiveAgent(Agent):
         now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
         headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
         self.vip.pubsub.publish('pubsub',pub_topic,headers,energyReduction)         
-        gevent.sleep(5) 
+        # gevent.sleep(5) 
 
 
 

@@ -1,3 +1,58 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+#
+# Copyright (c) 2016, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation are those
+# of the authors and should not be interpreted as representing official policies,
+# either expressed or implied, of the FreeBSD Project.
+#
+
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization
+# that has cooperated in the development of these materials, makes
+# any warranty, express or implied, or assumes any legal liability
+# or responsibility for the accuracy, completeness, or usefulness or
+# any information, apparatus, product, software, or process disclosed,
+# or represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does
+# not necessarily constitute or imply its endorsement, recommendation,
+# r favoring by the United States Government or any agency thereof,
+# or Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+
+#}}}
+
 import datetime
 import logging
 import sys
@@ -14,8 +69,6 @@ from . import settings
 from volttron.platform.messaging import topics, headers as headers_mod
 from datetime import timedelta
 from calendar import timegm
-# from scipy.interpolate import interp1d
-# from cvxopt import matrix, solvers
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -45,6 +98,8 @@ class TransactiveAgent(Agent):
             self.energyPoint[d]=[]
             self.powerPoint[d]=[]
         self.startTime= datetime.datetime.utcnow()
+
+        self.future = self.startTime + timedelta(seconds=30,minutes=0)
         self.energyDevicesStatusesDict={'series':[],'times':[],'time-format': 'h:mm a'}
         self.powerDevicesStatusesDict={'series':[],'times':[],'time-format': 'h:mm a'}
         self.entityId_transactive_component = 'transactive_home.transactive_home'
@@ -75,12 +130,20 @@ class TransactiveAgent(Agent):
         with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/data_set.json') as data_file: 
             data_historical = json.load(data_file)
             for i in data_historical['data']:
-                self.energyDict['series']['transactive']['points'].append(float(i['kWh']))
+                try:
+                    self.energyDict['series']['transactive']['points'].append(float(i['kWh']))
+                except IndexError:
+                    pass
+                continue
 
         with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/Transactive_data.json') as data_file:   
             data_transactive = json.load(data_file)
             for i in data_transactive['data']:
-                self.energyDict['series']['historical']['points'].append(float(i['kWh']))
+                try:
+                    self.energyDict['series']['historical']['points'].append(float(i['kWh']))
+                except IndexError:
+                    pass
+                continue
 
 
 # Initiate the json in the beginning of the code
@@ -112,8 +175,6 @@ class TransactiveAgent(Agent):
         topic seen.
         # '''
         counter =1
-        future=self.startTime
-        future = future + timedelta(minutes=1)
         urlServices_transactive = self.url+'states/'+ self.entityId_transactive_component 
         urlServices_connected_devices = self.url+'states/'+ self.entityId_connectedDevices_component
         urlServices_advance_settings = self.url+'states/'+ self.entityId_advancedSetting_component
@@ -140,51 +201,40 @@ class TransactiveAgent(Agent):
         data_connected_devices = results_connected_devices[0].text
         dataObject_connected = json.loads(data_connected_devices)
 
-        if ((datetime.datetime.utcnow()) >= future):
-            totalEnergy = 0
-            totalPower = 0
-            zone_max=100
-            zone_min =0
-            device_name = topic.partition('/')[-1].rpartition('/')[0]
-
-            with open('/home/yingying/git/volttron/examples/TransactiveAgent/config_devices') as device_file: 
-                device_dictionary = json.load(device_file)
-                print(device_dictionary)
-            self.ChangeUserSettings(device_dictionary)
-
-            if (topic == 'house/'+ device_name +'/all'):
+        totalEnergy = 0
+        totalPower = 0
+        zone_max=100
+        zone_min =0
+        device_name = topic.partition('/')[-1].rpartition('/')[0].rpartition('/')[0].rpartition('/')[2]
+        print(device_name)
+        with open('/home/yingying/git/volttron/examples/TransactiveAgent/config_devices') as device_file: 
+            device_dictionary = json.load(device_file)
+        self.ChangeUserSettings(device_dictionary)
+        if (device_name in self.deviceList):
+            if (topic == 'devices/all/'+ device_name +'/office/skycentrics' ):
                 now = datetime.datetime.now()
                 timestamp = now.isoformat()
                 for device in  self.deviceList:
                     if (device == device_name):
-                        load_value = round(message[0]['load(kW)'],2)
-                        energy_value = round(message[0]['Energy(kWH)'],2)
-                        self.energyPoint[str(device_name)].append(energy_value)
-                        self.powerPoint[str(device_name)].append(load_value)
-                        self.energyDevicesStatusesDict['times'].append(timestamp)
-                        self.powerDevicesStatusesDict['times'].append(timestamp)
-                        if (len(self.energyDevicesStatusesDict['times']) == 11):
-                            del (self.energyDevicesStatusesDict['times'][0])
-                        if (len(self.powerDevicesStatusesDict['times']) == 11):
-                            del (self.powerDevicesStatusesDict['times'][0])
+                        if (message[0]['InstantaneousElectricityConsumption']):
+                            load_value = round(message[0]['InstantaneousElectricityConsumption'],2)
+                        else :
+                            load_value = 0 
+                        if (message[0]['TotalEnergyStorageCapacity']):
+                            energy_value = round(message[0]['TotalEnergyStorageCapacity'],2)
+                        else :
+                            energy_value = 0 
+                        self.energyPoint[str(device)].append(energy_value)
+                        self.powerPoint[str(device)].append(load_value)
                     else :
                         load_value = float(dataObject_connected['attributes']['devices'][str(device)]['power'])
                         energy_value = float(dataObject_connected['attributes']['devices'][str(device)]['energy'])
+                        self.energyPoint[str(device)].append(energy_value)
+                        self.powerPoint[str(device)].append(load_value)
+
                     flexibility = dataObject_connected['attributes']['devices'][str(device)]['flexibility']
                     participation = dataObject_connected['attributes']['devices'][str(device)]['participate']
                     reset = dataObject_connected['attributes']['devices'][str(device)]['reset']
-#                     if (self.reset_default != reset):
-#                         counter = 0
-#                         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-#                         print("the value has been changed for reset")
-#                     self.reset_default = reset
-# # Adding the section where the OPT out time is defined 
-#                     if (reset==True && counter == 0):
-#                         timeBeforeTransactive = datetime.datetime.now() + timedelta(days=0,seconds=20,minutes=0)
-#                         if (reset == True and datetime.datetime.now() == timeBeforeTransactive)
-#                             reset = False
-#                             participation = True 
-#                         counter = 1
 
                     device_json = {
                         "energy":energy_value,
@@ -212,7 +262,9 @@ class TransactiveAgent(Agent):
                     self.deviceDictionary[device]= device_json
                     totalEnergy += energy_value
                     totalPower += load_value
-                self.ChangeDeviceStatuses(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict)
+                print("times")
+                print(datetime.datetime.utcnow())
+                print(self.future)
                 self.ChangeConnectedDevicesState(self.deviceDictionary)
                 if (self.energyDict['series']['actual']['points'][self.count] == None):
                     self.energyDict['series']['actual']['points'][self.count] =round(totalEnergy,2)
@@ -222,13 +274,15 @@ class TransactiveAgent(Agent):
                     "series":self.energyDict['series'],
                     "time-format": "MM/DD",
                     "times":self.energyDict['times']
-                } 
+                }
                 if (self.count == 50):
                     self.count=0
                 self.count = self.count + 1
-                gevent.sleep(10)
+                gevent.sleep(60)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
+                if ((datetime.datetime.utcnow()) >= self.future):
+                    self.setTime(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict,timestamp)
 
         powerSavingValue = dataObject_advanced_settings['attributes']['powerSavings']['value']
         energySavingValue = dataObject_advanced_settings['attributes']['energySavings']['value']
@@ -252,6 +306,17 @@ class TransactiveAgent(Agent):
         self.ChangeWholeHouseEnergyState(energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive,energySavingValue)
 
 
+
+    def setTime(self,energyDevicesStatusesDict,powerDevicesStatusesDict,timestamp):
+        energyDevicesStatusesDict['times'].append(timestamp)
+        powerDevicesStatusesDict['times'].append(timestamp)
+        if (len(energyDevicesStatusesDict['times']) == 11):
+            del (energyDevicesStatusesDict['times'][0])
+        if (len(powerDevicesStatusesDict['times']) == 11):
+            del (powerDevicesStatusesDict['times'][0])
+        self.future = datetime.datetime.utcnow() + timedelta(seconds=0,minutes=1)
+        self.ChangeDeviceStatuses(energyDevicesStatusesDict,powerDevicesStatusesDict)
+
     def ChangeTransactiveState(self,overall_energy,overall_power,energyDataPlot,flexibility,zone_max,zone_min):
 
         if self.entityId_transactive_component is None:
@@ -264,7 +329,7 @@ class TransactiveAgent(Agent):
                         "chartSeries":[{
                             "data": energyDataPlot,
                             "type": "line",
-                            "label": "Energy (Kwh)",
+                            "label": "Energy (kWh)",
                             "id": "transactive-home"
                         }
                         ],
@@ -272,12 +337,12 @@ class TransactiveAgent(Agent):
                         "measures":[
                         {
                             "label":"Overall Energy",
-                            "unit":"kwh",
+                            "unit":"kWh",
                             "value":overall_energy
                         },
                         {
                             "label":"Overall Power",
-                            "unit":"kw",
+                            "unit":"kW",
                             "value":overall_power                           
                         }],
                         "friendly_name": "Transactive Home",  
@@ -335,14 +400,14 @@ class TransactiveAgent(Agent):
                             "chartSeries":[{
                                 "data":energyDevicesStatusesDict,
                                 "id":"device-energy",
-                                "label":"Energy (Kwh)",
+                                "label":"Energy (kWh)",
                                 "type":"bar",
                                 "updateMethod":"update_chart_type"
                                 },
                                 {
                                 "data":powerDevicesStatusesDict,
                                 "id":"device-power",
-                                "label":"Power (Kw)",
+                                "label":"Power (kW)",
                                 "type":"bar",
                                 "updateMethod":"update_chart_type"
                             }],
@@ -366,7 +431,7 @@ class TransactiveAgent(Agent):
                 jsonMsg = json.dumps({
                         "attributes": {
                              "powerSavings": {
-                                "units": "Kw",
+                                "units": "kW",
                                 "value": powerSavingValue,
                                 "label":"1"
                             },
@@ -381,26 +446,30 @@ class TransactiveAgent(Agent):
                             "friendly_name":"Advanced Settings",
                             "time_of_use_pricing": {
                                 "label":"Time of use pricing",
-                                "list": [{
-                                    "units": "cents per",
-                                    "endTime": "17:00 pm",
-                                    "value": 15,
-                                    "startTime": "10:00 am"
-                                }, {
-                                    "units": "cents per",
-                                    "endTime": "20:00 pm",
-                                    "value": 35,
-                                    "startTime": "17:00 am"
-                                }, {
-                                    "units": "cents per",
-                                    "endTime": "9:00 am",
-                                    "value": 10,
-                                    "startTime": "20:00 pm"
-                                }],
+                                 "list": [
+                                    {
+                                        "endTime": "2017-10-24T14:00:00-07:00",
+                                        "startTime": "2017-10-24T10:00:00-07:00",
+                                        "units": "cents per",
+                                        "value": 15
+                                    },
+                                    {
+                                        "endTime": "2017-10-24T20:00:00-07:00",
+                                        "startTime": "2017-10-24T14:00:00-07:00",
+                                        "units": "cents per",
+                                        "value": 35
+                                    },
+                                    {
+                                        "endTime": "2017-10-24T09:00:00-07:00",
+                                        "startTime": "2017-10-24T20:00:00-07:00",
+                                        "units": "cents per",
+                                        "value": 10
+                                    }
+                                ]
                             },
                             "timePeriodEnd":timePeriodEnd,
                             "energySavings": {
-                                "units": "Kwh",
+                                "units": "kWh",
                                 "value": energySavingValue,
                                 "label":""
                             },

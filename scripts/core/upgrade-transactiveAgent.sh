@@ -11,7 +11,7 @@ cat > $CONFIG <<EOL
 
     "agentId": "TransactiveAgent",
     "hassConfigPath":"/home/yingying/Desktop/home-assistant/config/configuration.yaml",
-    "device_list":["AC1","AC2","WH1"],
+    "device_list":["AC1","AC2","WH1","wh-9845"],
     "url":"http://130.20.92.139:8123/api/",
     "urlPass":"NULL",
     "entityID":"transactive_home.transactive_home",

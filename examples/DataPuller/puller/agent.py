@@ -124,7 +124,7 @@ def historian(config_path, **kwargs):
             '''
 
             def subscriber(subscription, callback_method):
-                _log.debug("subscribing to {}".format(subscription))
+                # _log.debug("subscribing to {}".format(subscription))
                 self._target_platform.vip.pubsub.subscribe(peer='pubsub',
                                                            prefix=subscription,
                                                            callback=callback_method)
@@ -152,11 +152,11 @@ def historian(config_path, **kwargs):
             try:
                 # 2.0 agents compatability layer makes sender = pubsub.compat
                 # so we can do the proper thing when it is here
-                _log.debug("message in capture_data {}".format(message))
+                # _log.debug("message in capture_data {}".format(message))
                 if sender == 'pubsub.compat':
                     # data = jsonapi.loads(message[0])
                     data = compat.unpack_legacy_message(headers, message)
-                    _log.debug("data in capture_data {}".format(data))
+                    # _log.debug("data in capture_data {}".format(data))
                 if isinstance(data, dict):
                     data = data
                 elif isinstance(data, int) or \
@@ -168,8 +168,8 @@ def historian(config_path, **kwargs):
             except ValueError as e:
                 log_message = "message for {topic} bad message string:" \
                               "{message_string}"
-                _log.error(log_message.format(topic=topic,
-                                              message_string=message[0]))
+                # _log.error(log_message.format(topic=topic,
+                #                               message_string=message[0]))
                 raise
 
             if topic_replace_list:
@@ -198,7 +198,14 @@ def historian(config_path, **kwargs):
 
         def publish_to_self(self, topic, payload):
             handled_records = []
-
+            if (topic == "devices/all/wh-9845/office/skycentrics"):
+                print("===============================")
+                if (payload['message'][1]['InstantaneousElectricityConsumption']['units'] == 'W'):
+                    payload['message'][0]['InstantaneousElectricityConsumption'] = (float(payload['message'][0]['InstantaneousElectricityConsumption']) / 1000)
+                    payload['message'][1]['InstantaneousElectricityConsumption']['units'] = 'kW'
+                if (payload['message'][1]['TotalEnergyStorageCapacity']['units'] == 'Wh'):
+                    payload['message'][0]['TotalEnergyStorageCapacity'] = (float(payload['message'][0]['TotalEnergyStorageCapacity']) / 1000)
+                    payload['message'][1]['TotalEnergyStorageCapacity']['units'] = 'kWh'
             parsed = urlparse(self.core.address)
             next_dest = urlparse(source_vip)
             current_time = self.timestamp()
