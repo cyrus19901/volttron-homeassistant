@@ -128,20 +128,27 @@ class TransactiveAgent(Agent):
         for i in range(1,50):
             self.energyDict['series']['actual']['points'].append(None)
 
-        with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/data_set.json') as data_file: 
+        with open('/home/yingying/Desktop/5.0RC/volttron/examples/TransactiveAgent/transactiveagent/greenButtonHistoricalData.json') as data_file: 
             data_historical = json.load(data_file)
-            for i in data_historical['data']:
+            for i in data_historical:
                 try:
-                    self.energyDict['series']['transactive']['points'].append(float(i['kWh']))
+                    self.energyDict['series']['transactive']['points'].append(float(i['Value - Real energy (Watt-hours)'])/1000)
                 except IndexError:
-                    pass
+                     pass
                 continue
+
+        # print(self.energyDict['series']['transactive']['points'])
+                # try:
+                #     self.energyDict['series']['transactive']['points'].append(float(i['kWh']))
+                # except IndexError:
+                #     pass
+                # continue
 
         with open('/home/yingying/git/volttron/examples/TransactiveAgent/transactiveagent/Transactive_data.json') as data_file:   
             data_transactive = json.load(data_file)
             for i in data_transactive['data']:
                 try:
-                    self.energyDict['series']['historical']['points'].append(float(i['kWh']))
+                    self.energyDict['series']['transactive']['points'].append(float(i['kWh']))
                 except IndexError:
                     pass
                 continue
