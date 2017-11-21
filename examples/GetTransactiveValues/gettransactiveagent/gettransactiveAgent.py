@@ -36,35 +36,72 @@ class GetTransactiveAgent(Agent):
         self.entityId_userSettings_component = 'user_settings.user_settings'
         self.entityId_climate_heatpump = 'climate.heatpump'
 
+        self.entityId_energyEfficiencyPeakPeriod_component = 'energy_efficiency.peak_period_energy_and_compensation'
+        self.entityId_user_settings_component = 'user_settings.user_settings'
+        self.entityId_timeOfEnergyUseSaving = 'time_of_use.time_of_use_energy_and_savings'
         self.url = self.config['url']
         self.data  = []
         self.data2  = []
+        self.new_state = self.config['state']
 
-
-    @Core.receiver('onstart')
-    def GetDeviceData(self,sender, **kwargs):
-        '''
-            Get the current state for loaded components
-            from Home Assistant API
-        '''
+#Moving some from the transactive agent 
+    @Core.periodic(1)
+    def accessService(self):
+        urlServices_energyEfficiencyPeakPeriod = self.url+'states/'+ self.entityId_energyEfficiencyPeakPeriod_component
+        urlServices_timeOfUseEnergyUseSaving = self.url+'states/'+ self.entityId_timeOfEnergyUseSaving
+        urlServices_user_settings = self.url+'states/'+ self.entityId_user_settings_component
         self.urlServices_transactive = self.url+'states/'+ self.entityId_connectedDevices_component 
         self.urlServices_advanced_settings = self.url+'states/'+ self.entityId_advancedSettings_component
         self.urlServices_user_settings = self.url+'states/'+ self.entityId_userSettings_component
-
-        #new addition for devices from the HA side 
         self.urlServices_climate_heatpump = self.url+'states/'+ self.entityId_climate_heatpump
-        print(self.urlServices_climate_heatpump)        
-        while True:
-            self.setWillingness()
-            self.setEnergyReduction()
-            self.sendDeviceList()
-            self.sendDeviceFromHA()
-            # gevent.sleep(1)
-        
-    # @PubSub.subscribe('pubsub', '')
-    # def on_match_all(self, peer, sender, bus,  topic, headers, message):
 
-    #     print(topic)
+        req_user_settings = grequests.get(urlServices_user_settings)
+        results_user_settings = grequests.map([req_user_settings])
+        data_user_settings = results_user_settings[0].text
+        dataObject_user_sett = json.loads(data_user_settings)
+
+        req_timeOfUse_saving = grequests.get(urlServices_timeOfUseEnergyUseSaving)
+        results_timOfUse_saving = grequests.map([req_timeOfUse_saving])
+        data_timeOfUse_saving = results_timOfUse_saving[0].text
+        dataObject_timeOfUse_saving = json.loads(data_timeOfUse_saving)
+
+        req_energyEfficiencyPeakPeriod = grequests.get(urlServices_energyEfficiencyPeakPeriod)
+        results_energyEfficiencyPeakPeriod = grequests.map([req_energyEfficiencyPeakPeriod])
+        data_energyEfficiencyPeakPeriod = results_energyEfficiencyPeakPeriod[0].text
+        dataObject_energyEfficiency_peakPeriod = json.loads(data_energyEfficiencyPeakPeriod)
+
+        #Peak Period
+        self.compensationAcutal=dataObject_energyEfficiency_peakPeriod['attributes']['compensationActual']['value']
+        self.compensationEstimate=dataObject_energyEfficiency_peakPeriod['attributes']['compensationEstimate']['value']
+        self.compensationGoal=dataObject_energyEfficiency_peakPeriod['attributes']['compensationGoal']['value']
+        self.energyReductionActual_peak=dataObject_energyEfficiency_peakPeriod['attributes']['energyReductionActual']['value']
+        self.energyReductionEstimate_peak=dataObject_energyEfficiency_peakPeriod['attributes']['energyReductionEstimate']['value']
+        self.energyReductionGoal_peak=dataObject_energyEfficiency_peakPeriod['attributes']['energyReductionGoal']['value']
+        self.peakPeriodUseAlgorithm=dataObject_energyEfficiency_peakPeriod['attributes']['useAlgorithm']['value']
+
+        self.setWillingness()
+        self.setEnergyReduction()
+        self.sendDeviceList()
+        self.sendDeviceFromHA()
+        try:
+            self.vip.pubsub.subscribe(peer='pubsub', prefix='fncs/input/house/', 
+                                     callback=self.on_match_all)
+        except:
+            _log.debug("Topic Not found for enery_reduction or minimum disutility")
+
+    def on_match_all(self, peer, sender, bus,  topic, headers, message):
+        print("=======Inside Match All=============")
+
+        if (topic == 'fncs/input/house/energy_reduction'):
+            print("============PEAK PERIOD=============================")
+            self.energyReductionEstimate_peak=str(float(round(message,2)))
+            print(self.energyReductionEstimate_peak)
+
+        if (topic == 'fncs/input/house/minimum_disutility'):
+            print("============ENERGY REDUCTION=============================")
+            self.compensationEstimate = "$"+str(float(round(message,2)))
+            print(self.compensationEstimate)
+        self.ChangePeakPeriodEnergyCompensation(self.energyReductionActual_peak,self.energyReductionEstimate_peak,self.energyReductionGoal_peak,self.compensationAcutal,self.compensationEstimate,self.compensationGoal,self.peakPeriodUseAlgorithm)
 
     def sendDeviceFromHA(self):
 
@@ -75,11 +112,9 @@ class GetTransactiveAgent(Agent):
         dataObject = json.loads(data)
         devicename =(dataObject['attributes']['friendly_name'])
         pub_topic = 'devices/all/'+ devicename + '/office/skycentrics'
-        print (pub_topic)
         now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
         headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
         self.vip.pubsub.publish('pubsub',pub_topic,headers,dataObject)         
-        # gevent.sleep(1) 
 
     def sendDeviceList(self):   
 
@@ -91,13 +126,10 @@ class GetTransactiveAgent(Agent):
         for value in dataObject["attributes"]["devices"]:
             settings = dataObject["attributes"]["devices"][str(value)]["settings"]
             pub_topic = 'house/device/details/'+ value
-            print("-----------------------------------------")
-            print(pub_topic)
-            print(settings)
+
             now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
             headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
             self.vip.pubsub.publish('pubsub',pub_topic,headers,settings)         
-        gevent.sleep(.5) 
 
     def setWillingness(self):   
 
@@ -115,13 +147,11 @@ class GetTransactiveAgent(Agent):
             if (flexibility == "high"):
                 willingness = 2
             pub_topic = 'house/'+ value+'/'+value+'_beta'
-            print("-----------------------------------------")
-            print(pub_topic)
-            print(willingness)
+            # print("-----------------------------------------")
+            # print(willingness)
             now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
             headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
             self.vip.pubsub.publish('pubsub',pub_topic,headers,willingness)        
-        gevent.sleep(.5) 
         
 
     def setEnergyReduction(self):   
@@ -133,15 +163,101 @@ class GetTransactiveAgent(Agent):
         dataObject = json.loads(data)
         energyReduction = float(dataObject['attributes']['energySavings']['value'])
         pub_topic = 'house/energy_reduction'
-        print("-----------------------------------------")
-        print(pub_topic)
-        print(energyReduction)
+        # print("-----------------------------------------")
+        # print(energyReduction)
         now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
         headers = {headers_mod.TIMESTAMP: now, headers_mod.DATE: now}
         self.vip.pubsub.publish('pubsub',pub_topic,headers,energyReduction)         
-        # gevent.sleep(5) 
+
+    def ChangePeakPeriodEnergyCompensation(self,energyReductionActual_peak,energyReductionEstimate_peak,energyReductionGoal_peak,compensationAcutal,compensationEstimate,compensationGoal,peakPeriodUseAlgorithm):
+
+            if self.entityId_energyEfficiencyPeakPeriod_component is None:
+                return
+
+            urlServices = self.url+'states/'+ self.entityId_energyEfficiencyPeakPeriod_component
+            try:
+
+                jsonMsg = json.dumps({
+                        "attributes": {
+                           "friendly_name": "Peak Period Energy and Compensation",
+                            "compensationActual": {
+                                "value": compensationAcutal
+                            },
+                            "compensationEstimate": {
+                                "value": compensationEstimate
+                            },
+                            "compensationGoal": {
+                                "value": compensationGoal
+                            },
+                            "energyReductionActual": {
+                                "units": "kwh",
+                                "value": energyReductionActual_peak
+                            },
+                            "energyReductionEstimate": {
+                                "units": "kwh",
+                                "value": energyReductionEstimate_peak
+                            },
+                            "energyReductionGoal": {
+                                "units": "kwh",
+                                "value": energyReductionGoal_peak
+                            },
+                            "useAlgorithm": {
+                                "value": peakPeriodUseAlgorithm
+                            }
+                        },
+                        "state": self.new_state
+                    })
+                # print(jsonMsg)
+                header = {'Content-Type': 'application/json'}
+                requests.post(urlServices, data = jsonMsg, headers = header)
+                print("Energy efficiency for peak period has been changed")
+            except ValueError:
+                    pass
 
 
+    def ChangeTimeOfUseEnergyAndSavings(self,energyReductionActual_timeOfUse,energyReductionEstimate_timeOfUse,energyReductionGoal_timeOfUse,savingsActual,savingsEstimate,savingsGoal,timeOfUseUseAlgorithm):
+
+            if self.entityId_timeOfEnergyUseSaving is None:
+                return
+
+            urlServices = self.url+'states/'+ self.entityId_timeOfEnergyUseSaving
+            try:
+                jsonMsg = json.dumps({
+                        "attributes": {
+                            "energyReductionActual": {
+                                "units": "kwh",
+                                "value": energyReductionActual_timeOfUse
+                            },
+                            "energyReductionEstimate": {
+                                "units": "kwh",
+                                "value": energyReductionEstimate_timeOfUse
+                            },
+                            "energyReductionGoal": {
+                                "units": "kwh",
+                                "value": energyReductionGoal_timeOfUse
+                            },
+                            "friendly_name": "Time of use energy and savings",
+                            "savingsActual": {
+                                "value": savingsActual
+                            },
+                            "savingsEstimate": {
+                                "value": savingsEstimate
+                            },
+                            "savingsGoal": {
+                                "value": savingsGoal
+                            },
+                            "useAlgorithm": {
+                                "value": timeOfUseUseAlgorithm
+                            }
+                        },
+                        "state": self.new_state
+                    })
+                header = {'Content-Type': 'application/json'}
+                # print(jsonMsg)
+                requests.post(urlServices, data = jsonMsg, headers = header)
+                print("Energy efficiency for peak period has been changed")
+            except ValueError:
+                    pass
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''

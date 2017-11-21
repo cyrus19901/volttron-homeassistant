@@ -104,10 +104,11 @@ class TransactiveAgent(Agent):
         self.powerDevicesStatusesDict={'series':[],'times':[],'time-format': 'h:mm a'}
         self.entityId_transactive_component = 'transactive_home.transactive_home'
         self.entityId_connectedDevices_component = 'connected_devices.connected_devices'
-        self.entityId_wholeHouse_component = 'whole_house_energy.wholehouse_energy_use_and_cost'
+        self.entityId_energyEfficiencyPeakPeriod_component = 'energy_efficiency.peak_period_energy_and_compensation'
         self.entityId_advancedSetting_component = 'advanced_settings.advanced_settings'
         self.entityId_deviceStatus_component = 'device_statuses.device_statuses'
         self.entityId_user_settings_component = 'user_settings.user_settings'
+        self.entityId_timeOfEnergyUseSaving = 'time_of_use.time_of_use_energy_and_savings'
         self.new_state = self.config['state']
         self.count=0
         self.energyDict = {'series':[],'times':[]}
@@ -169,7 +170,7 @@ class TransactiveAgent(Agent):
         header = {'Content-Type': 'application/json'}
         requests.post(urlServices, data = jsonMsg, headers = header)  
 
-    @PubSub.subscribe('pubsub', '')
+    @PubSub.subscribe('pubsub', 'devices/all/')
     def on_match_all(self, peer, sender, bus,  topic, headers, message):
         ''' This method subscibes to all topics. It simply prints out the 
         topic seen.
@@ -178,7 +179,8 @@ class TransactiveAgent(Agent):
         urlServices_transactive = self.url+'states/'+ self.entityId_transactive_component 
         urlServices_connected_devices = self.url+'states/'+ self.entityId_connectedDevices_component
         urlServices_advance_settings = self.url+'states/'+ self.entityId_advancedSetting_component
-        urlServices_wholehouse_energy_useandcost = self.url+'states/'+ self.entityId_wholeHouse_component
+        urlServices_energyEfficiencyPeakPeriod = self.url+'states/'+ self.entityId_energyEfficiencyPeakPeriod_component
+        urlServices_timeOfUseEnergyUseSaving = self.url+'states/'+ self.entityId_timeOfEnergyUseSaving
         urlServices_user_settings = self.url+'states/'+ self.entityId_user_settings_component
 
         req_user_settings = grequests.get(urlServices_user_settings)
@@ -191,27 +193,33 @@ class TransactiveAgent(Agent):
         data_advanced_settings = results_advanced_settings[0].text
         dataObject_advanced_settings = json.loads(data_advanced_settings)
 
-        req_wholehouse_energy_useandcost = grequests.get(urlServices_wholehouse_energy_useandcost)
-        results_wholehouse_energy_useandcost = grequests.map([req_wholehouse_energy_useandcost])
-        data_wholehouse_energy_useandcost = results_wholehouse_energy_useandcost[0].text
-        dataObject_wholehouse_energy_useandcost = json.loads(data_wholehouse_energy_useandcost)
+        req_energyEfficiencyPeakPeriod = grequests.get(urlServices_energyEfficiencyPeakPeriod)
+        results_energyEfficiencyPeakPeriod = grequests.map([req_energyEfficiencyPeakPeriod])
+        data_energyEfficiencyPeakPeriod = results_energyEfficiencyPeakPeriod[0].text
+        dataObject_energyEfficiency_peakPeriod = json.loads(data_energyEfficiencyPeakPeriod)
         
         req_connected_devices = grequests.get(urlServices_connected_devices)
         results_connected_devices = grequests.map([req_connected_devices])
         data_connected_devices = results_connected_devices[0].text
         dataObject_connected = json.loads(data_connected_devices)
 
+        req_timeOfUse_saving = grequests.get(urlServices_timeOfUseEnergyUseSaving)
+        results_timOfUse_saving = grequests.map([req_timeOfUse_saving])
+        data_timeOfUse_saving = results_timOfUse_saving[0].text
+        dataObject_timeOfUse_saving = json.loads(data_timeOfUse_saving)
+
         totalEnergy = 0
         totalPower = 0
         zone_max=100
         zone_min =0
         device_name = topic.partition('/')[-1].rpartition('/')[0].rpartition('/')[0].rpartition('/')[2]
-        print(device_name)
+
         with open('/home/yingying/git/volttron/examples/TransactiveAgent/config_devices') as device_file: 
             device_dictionary = json.load(device_file)
         self.ChangeUserSettings(device_dictionary)
         if (device_name in self.deviceList):
-            if (topic == 'devices/all/'+ device_name +'/office/skycentrics' ):
+            if (topic == 'devices/all/'+ device_name +'/office/skycentrics'):
+                print(device_name)
                 now = datetime.datetime.now()
                 timestamp = now.isoformat()
                 for device in  self.deviceList:
@@ -278,33 +286,11 @@ class TransactiveAgent(Agent):
                 if (self.count == 50):
                     self.count=0
                 self.count = self.count + 1
-                gevent.sleep(60)
+                gevent.sleep(10)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
                 if ((datetime.datetime.utcnow()) >= self.future):
                     self.setTime(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict,timestamp)
-
-        powerSavingValue = dataObject_advanced_settings['attributes']['powerSavings']['value']
-        energySavingValue = dataObject_advanced_settings['attributes']['energySavings']['value']
-        savingStartTime = dataObject_advanced_settings['attributes']['savingsStartTime']
-        savingEndTime = dataObject_advanced_settings['attributes']['savingsEndTime']
-        timePeriodStart = dataObject_advanced_settings['attributes']['timePeriodStart']
-        timePeriodEnd = dataObject_advanced_settings['attributes']['timePeriodEnd']
-        incentives = dataObject_advanced_settings['attributes']['incentives']['value']
-        self.ChangeAdvancedSettings(powerSavingValue,energySavingValue,savingStartTime,savingEndTime,timePeriodStart,timePeriodEnd,incentives)
-
-        energyCost_transactive=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['transactive']
-        energyCost_maximum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['maximum']
-        energyCost_mimimum=dataObject_wholehouse_energy_useandcost['attributes']['energyCost']['minimum']
-        energyUse_maximum=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['maximum']
-        energyUse_minimum=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['minimum']
-        energyUse_transactive=dataObject_wholehouse_energy_useandcost['attributes']['energyUse']['transactive']
-        if (topic == 'fncs/input/house/energy_reduction'):
-            energyUse_transactive=str(float(round(message,2)))
-        if (topic == 'fncs/input/house/minimum_disutility'):
-            energyCost_transactive = "$"+str(float(round(message,2)))
-        self.ChangeWholeHouseEnergyState(energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive,energySavingValue)
-
 
 
     def setTime(self,energyDevicesStatusesDict,powerDevicesStatusesDict,timestamp):
@@ -493,38 +479,8 @@ class TransactiveAgent(Agent):
                         "state": self.new_state
                     })
                 header = {'Content-Type': 'application/json'}
-                # requests.post(urlServices, data = jsonMsg, headers = header)
-                # print("Advanced Setting State has been changed")
-            except ValueError:
-                    pass
-
-
-    def ChangeWholeHouseEnergyState(self,energyCost_maximum,energyCost_mimimum,energyCost_transactive,energyUse_maximum,energyUse_minimum,energyUse_transactive,energySavingValue):
-
-            if self.entityId_wholeHouse_component is None:
-                return
-
-            urlServices = self.url+'states/'+ self.entityId_wholeHouse_component
-            try:
-                jsonMsg = json.dumps({
-                        "attributes": {
-                            "friendly_name": "Whole-house energy use and cost",
-                            "energyCost":{
-                                "maximum":energyCost_maximum,
-                                "minimum":energyCost_mimimum,
-                                "transactive":energyCost_transactive
-                            },
-                            "energyUse":{
-                                "maximum":str(energySavingValue),
-                                "minimum":energyUse_minimum,
-                                "transactive":energyUse_transactive
-                            }
-                        },
-                        "state": self.new_state
-                    })
-                header = {'Content-Type': 'application/json'}
                 requests.post(urlServices, data = jsonMsg, headers = header)
-                print("Whole house energy state has been changed")
+                print("Advanced Setting State has been changed")
             except ValueError:
                     pass
 
