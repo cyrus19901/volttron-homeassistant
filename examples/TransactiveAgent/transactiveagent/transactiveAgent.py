@@ -278,6 +278,7 @@ class TransactiveAgent(Agent):
                 print(datetime.datetime.utcnow())
                 print(self.future)
                 self.ChangeConnectedDevicesState(self.deviceDictionary)
+		self.energyDict['series']['actual']['line-style'] = ""
                 if (self.energyDict['series']['actual']['points'][self.count] == None):
                     self.energyDict['series']['actual']['points'][self.count] =round(totalEnergy,2)
                     self.energyDict['series']['transactive']['points'][self.count] =round(totalEnergy,2)
@@ -423,16 +424,22 @@ class TransactiveAgent(Agent):
                              "powerSavings": {
                                 "units": "kW",
                                 "value": powerSavingValue,
-                                "label":"1"
+                                "label":""
                             },
-                            "savingsEndTime":savingEndTime,
+                            "savingsEndTime":{
+                                "value": savingEndTime
+                            },
                             "incentives": {
                                 "units": "$ per peak period",
                                 "value": incentives,
                                 "label": "Incentives"
                             },
-                            "savingsStartTime":savingStartTime,
-                            "timePeriodStart" : timePeriodStart,
+                            "savingsStartTime":{
+                                "value": savingStartTime
+                            },
+                            "timePeriodStart" : {
+                                "value": timePeriodStart
+                            },
                             "friendly_name":"Advanced Settings",
                             "time_of_use_pricing": {
                                 "label":"Time of use pricing",
@@ -457,7 +464,9 @@ class TransactiveAgent(Agent):
                                     }
                                 ]
                             },
-                            "timePeriodEnd":timePeriodEnd,
+                            "timePeriodEnd":{
+                                "value": timePeriodEnd
+                            },
                             "energySavings": {
                                 "units": "kWh",
                                 "value": energySavingValue,
@@ -478,6 +487,7 @@ class TransactiveAgent(Agent):
             
             urlServices = self.url+'states/'+ self.entityId_user_settings_component
             try:
+
                 jsonMsg = json.dumps({
                         "attributes":device_dictionary,
                         "state": self.new_state
