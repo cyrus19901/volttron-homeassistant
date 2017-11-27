@@ -25,7 +25,7 @@ export TAG=datapuller
 
 # Uncomment this to set the identity of the agent. Overrides the platform default identity and the agent's
 # preferred identity.
-export AGENT_VIP_IDENTITY="datapuller2"
+export AGENT_VIP_IDENTITY="datapuller"
 
 ./scripts/core/upgrade-agent.sh enable
 
