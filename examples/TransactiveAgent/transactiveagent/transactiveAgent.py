@@ -115,9 +115,9 @@ class TransactiveAgent(Agent):
 	cumulative_historical = 0
 	cumulative_transactive = 0
         energySeries = {'actual':[],'historical':[],'transactive':[]}
-        energySeries['actual'] = { 'color':'#ffa450','label':'actual','line-style':'line','points':[]}
+        energySeries['actual'] = { 'color':'#FF7F50','label':'actual','line-style':'','points':[]}
         energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'dash','points':[]}
-        energySeries['transactive'] = { 'color':'#1b6630','label':'transactive','line-style':'dash','points':[]}
+        energySeries['transactive'] = { 'color':'ForestGreen','label':'transactive','line-style':'dash','points':[]}
         self.energyDict['series']= energySeries
         now = datetime.datetime.now()
         future=now
@@ -291,7 +291,7 @@ class TransactiveAgent(Agent):
                 if (self.count == 50):
                     self.count=0
                 self.count = self.count + 1
-                gevent.sleep(10)
+                gevent.sleep(60)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
                 if ((datetime.datetime.utcnow()) >= self.future):
@@ -305,7 +305,7 @@ class TransactiveAgent(Agent):
             del (energyDevicesStatusesDict['times'][0])
         if (len(powerDevicesStatusesDict['times']) == 11):
             del (powerDevicesStatusesDict['times'][0])
-        self.future = datetime.datetime.utcnow() + timedelta(seconds=0,minutes=1)
+        self.future = datetime.datetime.utcnow() + timedelta(seconds=0,minutes=15)
         self.ChangeDeviceStatuses(energyDevicesStatusesDict,powerDevicesStatusesDict)
 
     def ChangeTransactiveState(self,overall_energy,overall_power,energyDataPlot,flexibility,zone_max,zone_min):
@@ -344,11 +344,14 @@ class TransactiveAgent(Agent):
                             "zone_min" : zone_min
                         }],
                         "progress_bar":{
-                            "end_point":80,
-                            "message": "Half-way through, keep up the good work!",
+                            "comparisonLabel": "savings compared to last year",
+                            "end_point":250,
+                            "lastYearLabel": "Last year's total energy cost",
+                            "last_year": 1680,
+                            "message": "You are off to a good start",
                             "starting_point": 0,
                             "value": 55
-                        },   
+                        },     
 
                     },
                     "state": self.new_state
