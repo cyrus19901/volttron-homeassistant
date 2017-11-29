@@ -112,8 +112,8 @@ class TransactiveAgent(Agent):
         self.new_state = self.config['state']
         self.count=0
         self.energyDict = {'series':[],'times':[]}
-	cumulative_historical = 0
-	cumulative_transactive = 0
+        cumulative_historical = 0
+        cumulative_transactive = 0
         energySeries = {'actual':[],'historical':[],'transactive':[]}
         energySeries['actual'] = { 'color':'#FF7F50','label':'actual','line-style':'','points':[]}
         energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'dash','points':[]}
@@ -134,7 +134,7 @@ class TransactiveAgent(Agent):
             data_historical = json.load(data_file)
             for i in data_historical:
                 try:
-		    cumulative_historical = cumulative_historical + float(i['Value - Real energy (Watt-hours)'])/1000
+                    cumulative_historical = cumulative_historical + float(i['Value - Real energy (Watt-hours)'])/1000
                     self.energyDict['series']['historical']['points'].append(cumulative_historical)
                 except IndexError:
                      pass
@@ -144,7 +144,7 @@ class TransactiveAgent(Agent):
             data_transactive = json.load(data_file)
             for i in data_transactive:
                 try:
-		    cumulative_transactive = cumulative_transactive + float(i['Value - Real energy (Watt-hours)'])/1000
+                    cumulative_transactive = cumulative_transactive + float(i['Value - Real energy (Watt-hours)'])/1000
                     self.energyDict['series']['transactive']['points'].append(cumulative_transactive)
                 except IndexError:
                     pass
@@ -265,7 +265,7 @@ class TransactiveAgent(Agent):
                 print(datetime.datetime.utcnow())
                 print(self.future)
                 self.ChangeConnectedDevicesState(self.deviceDictionary)
-		self.energyDict['series']['actual']['line-style'] = ""
+                self.energyDict['series']['actual']['line-style'] = ""
                 if (self.energyDict['series']['actual']['points'][self.count] == None):
                     self.energyDict['series']['actual']['points'][self.count] =round(totalEnergy,2)
                     self.energyDict['series']['transactive']['points'][self.count] =round(totalEnergy,2)
@@ -278,7 +278,7 @@ class TransactiveAgent(Agent):
                 if (self.count == 50):
                     self.count=0
                 self.count = self.count + 1
-                gevent.sleep(60)
+                gevent.sleep(10)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
                 if ((datetime.datetime.utcnow()) >= self.future):
@@ -292,7 +292,7 @@ class TransactiveAgent(Agent):
             del (energyDevicesStatusesDict['times'][0])
         if (len(powerDevicesStatusesDict['times']) == 11):
             del (powerDevicesStatusesDict['times'][0])
-        self.future = datetime.datetime.utcnow() + timedelta(seconds=0,minutes=15)
+        self.future = datetime.datetime.utcnow() + timedelta(seconds=0,minutes=1)
         self.ChangeDeviceStatuses(energyDevicesStatusesDict,powerDevicesStatusesDict)
 
     def ChangeTransactiveState(self,overall_energy,overall_power,energyDataPlot,flexibility,zone_max,zone_min):
