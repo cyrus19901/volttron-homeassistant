@@ -130,7 +130,7 @@ class TransactiveAgent(Agent):
         for i in range(1,50):
             self.energyDict['series']['actual']['points'].append(None)
 
-        with open('/home/pi/volttron-homeassistant/examples/TransactiveAgent/transactiveagent/greendata-transactive.json') as data_file: 
+        with open('/home/yingying/Desktop/5.0RC/volttron/examples/TransactiveAgent/transactiveagent/greendata-transactive.json') as data_file: 
             data_historical = json.load(data_file)
             for i in data_historical:
                 try:
@@ -140,7 +140,7 @@ class TransactiveAgent(Agent):
                      pass
                 continue
 
-        with open('/home/pi/volttron-homeassistant/examples/TransactiveAgent/transactiveagent/greenButtonHistoricalData.json') as data_file:   
+        with open('/home/yingying/Desktop/5.0RC/volttron/examples/TransactiveAgent/transactiveagent/greenButtonHistoricalData.json') as data_file:   
             data_transactive = json.load(data_file)
             for i in data_transactive:
                 try:
@@ -179,38 +179,25 @@ class TransactiveAgent(Agent):
         ''' This method subscibes to all topics. It simply prints out the 
         topic seen.
         # '''
+        urls = [
+        self.url+'states/'+ self.entityId_transactive_component,
+        self.url+'states/'+ self.entityId_connectedDevices_component,
+        self.url+'states/'+ self.entityId_advancedSetting_component,
+        self.url+'states/'+ self.entityId_energyEfficiencyPeakPeriod_component,
+        self.url+'states/'+ self.entityId_timeOfEnergyUseSaving,
+        self.url+'states/'+ self.entityId_user_settings_component
+        ]
+
         counter =1
-        urlServices_transactive = self.url+'states/'+ self.entityId_transactive_component 
-        urlServices_connected_devices = self.url+'states/'+ self.entityId_connectedDevices_component
-        urlServices_advance_settings = self.url+'states/'+ self.entityId_advancedSetting_component
-        urlServices_energyEfficiencyPeakPeriod = self.url+'states/'+ self.entityId_energyEfficiencyPeakPeriod_component
-        urlServices_timeOfUseEnergyUseSaving = self.url+'states/'+ self.entityId_timeOfEnergyUseSaving
-        urlServices_user_settings = self.url+'states/'+ self.entityId_user_settings_component
 
-        req_user_settings = grequests.get(urlServices_user_settings)
-        results_user_settings = grequests.map([req_user_settings])
-        data_user_settings = results_user_settings[0].text
-        dataObject_user_sett = json.loads(data_user_settings)
-        
-        req_advanced_settings = grequests.get(urlServices_advance_settings)
-        results_advanced_settings = grequests.map([req_advanced_settings])
-        data_advanced_settings = results_advanced_settings[0].text
-        dataObject_advanced_settings = json.loads(data_advanced_settings)
-
-        req_energyEfficiencyPeakPeriod = grequests.get(urlServices_energyEfficiencyPeakPeriod)
-        results_energyEfficiencyPeakPeriod = grequests.map([req_energyEfficiencyPeakPeriod])
-        data_energyEfficiencyPeakPeriod = results_energyEfficiencyPeakPeriod[0].text
-        dataObject_energyEfficiency_peakPeriod = json.loads(data_energyEfficiencyPeakPeriod)
-        
-        req_connected_devices = grequests.get(urlServices_connected_devices)
-        results_connected_devices = grequests.map([req_connected_devices])
-        data_connected_devices = results_connected_devices[0].text
-        dataObject_connected = json.loads(data_connected_devices)
-
-        req_timeOfUse_saving = grequests.get(urlServices_timeOfUseEnergyUseSaving)
-        results_timOfUse_saving = grequests.map([req_timeOfUse_saving])
-        data_timeOfUse_saving = results_timOfUse_saving[0].text
-        dataObject_timeOfUse_saving = json.loads(data_timeOfUse_saving)
+        request_data = (grequests.get(u) for u in urls)
+        response = grequests.map(request_data)
+        dataObject_transactive = json.loads(response[0].text) 
+        dataObject_connected = json.loads(response[1].text)
+        dataObject_advanced_settings = json.loads(response[2].text)
+        dataObject_energyEfficiency_peakPeriod = json.loads(response[3].text)
+        dataObject_timeOfUse_saving = json.loads(response[4].text)
+        dataObject_user_sett = json.loads(response[5].text)
 
         totalEnergy = 0
         totalPower = 0
@@ -218,7 +205,7 @@ class TransactiveAgent(Agent):
         zone_min =0
         device_name = topic.partition('/')[-1].rpartition('/')[0].rpartition('/')[0].rpartition('/')[2]
 
-        with open('/home/pi/volttron-homeassistant/examples/TransactiveAgent/config_devices') as device_file: 
+        with open('/home/yingying/Desktop/5.0RC/volttron/examples/TransactiveAgent/config_devices') as device_file: 
             device_dictionary = json.load(device_file)
         self.ChangeUserSettings(device_dictionary)
         if (device_name in self.deviceList):
