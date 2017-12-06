@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-export SOURCE=/home/pi/volttron-homeassistant/examples/HEMSAgent
-export CONFIG=/home/pi/volttron-homeassistant/examples/HEMSAgent/HEMS_config
+export SOURCE=/home/yingying/Desktop/5.0RC/volttron-applications/pnnl/HEMSAgent
+export CONFIG=/home/yingying/Desktop/5.0RC/volttron-applications/pnnl/HEMSAgent/HEMS_config
 
 export TAG=HEMS
 

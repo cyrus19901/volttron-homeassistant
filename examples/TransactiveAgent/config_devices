@@ -1,6 +1,6 @@
 {
 	"devices": {
-		"HVAC1": {
+		"AC1": {
 			"settings": [{
 					"attributes": [{
 						"name": "temperature",
@@ -32,7 +32,7 @@
 				}
 			]
 		},
-		"HVAC2": {
+		"AC2": {
 			"settings": [{
 					"attributes": [{
 						"name": "temperature",

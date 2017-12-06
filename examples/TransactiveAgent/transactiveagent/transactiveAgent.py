@@ -105,9 +105,9 @@ class TransactiveAgent(Agent):
         self.entityId_transactive_component = 'transactive_home.transactive_home'
         self.entityId_connectedDevices_component = 'connected_devices.connected_devices'
         self.entityId_energyEfficiencyPeakPeriod_component = 'energy_efficiency.peak_period_energy_and_compensation'
-        self.entityId_advancedSetting_component = 'advanced_settings.advanced_settings'
+        self.entityId_advancedSetting_component = 'advanced_settings.utility_settings'
         self.entityId_deviceStatus_component = 'device_statuses.device_statuses'
-        self.entityId_user_settings_component = 'user_settings.user_settings'
+        self.entityId_user_settings_component = 'user_settings.device_settings'
         self.entityId_timeOfEnergyUseSaving = 'time_of_use.time_of_use_energy_and_savings'
         self.new_state = self.config['state']
         self.count=0
@@ -214,7 +214,7 @@ class TransactiveAgent(Agent):
                 now = datetime.datetime.now()
                 timestamp = now.isoformat()
                 for device in  self.deviceList:
-                    if (device == device_name):
+                    if (device_name == device):
                         if (message[0]['InstantaneousElectricityConsumption']):
                             load_value = round(message[0]['InstantaneousElectricityConsumption'],2)
                         else :
@@ -223,18 +223,16 @@ class TransactiveAgent(Agent):
                             energy_value = round(message[0]['TotalEnergyStorageCapacity'],2)
                         else :
                             energy_value = 0 
-                        self.energyPoint[str(device)].append(energy_value)
-                        self.powerPoint[str(device)].append(load_value)
+                        self.populateDict(device_name,energy_value,load_value)
+
                     else :
                         load_value = float(dataObject_connected['attributes']['devices'][str(device)]['power'])
                         energy_value = float(dataObject_connected['attributes']['devices'][str(device)]['energy'])
-                        self.energyPoint[str(device)].append(energy_value)
-                        self.powerPoint[str(device)].append(load_value)
+                        self.populateDict(device,energy_value,load_value)
 
                     flexibility = dataObject_connected['attributes']['devices'][str(device)]['flexibility']
                     participation = dataObject_connected['attributes']['devices'][str(device)]['participate']
                     reset = dataObject_connected['attributes']['devices'][str(device)]['reset']
-
                     device_json = {
                         "energy":energy_value,
                         "flexibility":flexibility,
@@ -244,26 +242,9 @@ class TransactiveAgent(Agent):
                         "zone_max":zone_max,
                         "zone_min":zone_min
                         }
-                    devicesEnergyStatus_json = {
-                        "points": self.energyPoint[str(device_name)]
-                        }
-                    devicesPowerStatus_json = {
-                        "points": self.powerPoint[str(device_name)]
-                        }
-                    self.devicePowerStausesDict[device_name] = devicesPowerStatus_json
-                    self.deviceEnergyStausesDict[device_name] = devicesEnergyStatus_json
-                    if (len(self.deviceEnergyStausesDict[device_name]) == 11):
-                        del (self.deviceEnergyStausesDict[device_name][0])
-                    if (len(self.devicePowerStausesDict[device_name]) == 11):
-                        del (self.devicePowerStausesDict[device_name][0])
-                    self.energyDevicesStatusesDict['series']= self.deviceEnergyStausesDict
-                    self.powerDevicesStatusesDict['series']= self.devicePowerStausesDict
                     self.deviceDictionary[device]= device_json
                     totalEnergy += energy_value
                     totalPower += load_value
-                print("times")
-                print(datetime.datetime.utcnow())
-                print(self.future)
                 self.ChangeConnectedDevicesState(self.deviceDictionary)
                 self.energyDict['series']['actual']['line-style'] = ""
                 if (self.energyDict['series']['actual']['points'][self.count] == None):
@@ -278,22 +259,48 @@ class TransactiveAgent(Agent):
                 if (self.count == 50):
                     self.count=0
                 self.count = self.count + 1
-                gevent.sleep(10)
+                gevent.sleep(60)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
-                if ((datetime.datetime.utcnow()) >= self.future):
-                    self.setTime(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict,timestamp)
 
 
-    def setTime(self,energyDevicesStatusesDict,powerDevicesStatusesDict,timestamp):
-        energyDevicesStatusesDict['times'].append(timestamp)
-        powerDevicesStatusesDict['times'].append(timestamp)
-        if (len(energyDevicesStatusesDict['times']) == 11):
-            del (energyDevicesStatusesDict['times'][0])
-        if (len(powerDevicesStatusesDict['times']) == 11):
-            del (powerDevicesStatusesDict['times'][0])
-        self.future = datetime.datetime.utcnow() + timedelta(seconds=0,minutes=1)
-        self.ChangeDeviceStatuses(energyDevicesStatusesDict,powerDevicesStatusesDict)
+    def populateDict(self,device,energy_value,load_value):
+        now = datetime.datetime.now()
+        timestamp = now.isoformat()
+        self.energyPoint[str(device)].append(energy_value)
+        self.powerPoint[str(device)].append(load_value)
+        devicesEnergyStatus_json = {
+            "points": self.energyPoint[str(device)]
+            }
+        devicesPowerStatus_json = {
+            "points": self.powerPoint[str(device)]
+            }
+        self.devicePowerStausesDict[device] = devicesPowerStatus_json
+        self.deviceEnergyStausesDict[device] = devicesEnergyStatus_json
+        self.energyDevicesStatusesDict['series']= self.deviceEnergyStausesDict
+        self.powerDevicesStatusesDict['series']= self.devicePowerStausesDict
+        self.energyDevicesStatusesDict['times'].append(timestamp)
+        self.powerDevicesStatusesDict['times'].append(timestamp)
+        if (len(self.deviceEnergyStausesDict[device])) == 11 or (len(self.deviceEnergyStausesDict[device])) == 11:
+            del (self.deviceEnergyStausesDict[device][0])
+            del (self.devicePowerStausesDict[device][0])
+        if (len(self.energyDevicesStatusesDict['times']) == 11) or (len(self.powerDevicesStatusesDict['times']) == 11):
+            del (self.energyDevicesStatusesDict['times'][0])
+            del (self.powerDevicesStatusesDict['times'][0])
+        self.ChangeDeviceStatuses(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict)
+        # if ((datetime.datetime.utcnow()) >= self.future):
+        #     self.setTime(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict,timestamp)
+
+
+    # def setTime(self,energyDevicesStatusesDict,powerDevicesStatusesDict,timestamp):
+    #     energyDevicesStatusesDict['times'].append(timestamp)
+    #     powerDevicesStatusesDict['times'].append(timestamp)
+    #     # if (len(energyDevicesStatusesDict['times']) == 11):
+    #     #     del (energyDevicesStatusesDict['times'][0])
+    #     # if (len(powerDevicesStatusesDict['times']) == 11):
+    #     #     del (powerDevicesStatusesDict['times'][0])
+    #     self.future = datetime.datetime.utcnow() + timedelta(seconds=10,minutes=0)
+    #     self.ChangeDeviceStatuses(energyDevicesStatusesDict,powerDevicesStatusesDict)
 
     def ChangeTransactiveState(self,overall_energy,overall_power,energyDataPlot,flexibility,zone_max,zone_min):
 
@@ -399,6 +406,7 @@ class TransactiveAgent(Agent):
                 header = {'Content-Type': 'application/json'}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print(" Devices Statuses State has been changed")
+                gevent.sleep(60)
             except ValueError:
                     pass
 
