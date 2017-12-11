@@ -57,8 +57,8 @@ class GetTransactiveAgent(Agent):
         self.url+'states/'+ self.entityId_userSettings_component,
         self.url+'states/'+ self.entityId_climate_heatpump
         ]
-
-        request_data = (grequests.get(u) for u in urls)
+        header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+        request_data = (grequests.get(u, headers= header) for u in urls)
         response = grequests.map(request_data)
         self.dataObject_transactive = json.loads(response[0].text)
         self.dataObject_connected = json.loads(response[1].text)
@@ -182,7 +182,7 @@ class GetTransactiveAgent(Agent):
                         "state": self.new_state
                     })
                 # print(jsonMsg)
-                header = {'Content-Type': 'application/json'}
+                header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print("Energy efficiency for peak period has been changed")
             except ValueError:
@@ -226,7 +226,7 @@ class GetTransactiveAgent(Agent):
                         },
                         "state": self.new_state
                     })
-                header = {'Content-Type': 'application/json'}
+                header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
                 # print(jsonMsg)
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print("Energy efficiency for peak period has been changed")
