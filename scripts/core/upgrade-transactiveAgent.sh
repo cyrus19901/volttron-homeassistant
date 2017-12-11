@@ -17,6 +17,7 @@ cat > $CONFIG <<EOL
     "entityID":"transactive_home.transactive_home",
     "friendly_name":"Transactive Home",
     "state" : "on",
+    "password": "admin",
     "request":"post",
     "message": "hello"
  

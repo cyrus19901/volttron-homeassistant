@@ -14,6 +14,7 @@ cat > $CONFIG <<EOL
     "device_list":["HVAC1","HVAC2","wh-9845"],
     "url":"http://localhost:8123/api/",
     "urlPass":"NULL",
+    "password": "admin",
     "friendly_name":"Transactive Home",
     "state" : "on",
     "request":"post",

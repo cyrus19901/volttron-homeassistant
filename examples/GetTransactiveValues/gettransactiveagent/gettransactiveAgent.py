@@ -40,6 +40,7 @@ class GetTransactiveAgent(Agent):
         self.entityId_energyEfficiencyPeakPeriod_component = 'energy_efficiency.peak_period_energy_and_compensation'
         self.entityId_timeOfEnergyUseSaving = 'time_of_use.time_of_use_energy_and_savings'
         self.url = self.config['url']
+        self.password = self.config['password']
         self.data  = []
         self.data2  = []
         self.new_state = self.config['state']
@@ -57,7 +58,7 @@ class GetTransactiveAgent(Agent):
         self.url+'states/'+ self.entityId_userSettings_component,
         self.url+'states/'+ self.entityId_climate_heatpump
         ]
-        header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+        header = {'Content-Type': 'application/json' ,'x-ha-access': self.password}
         request_data = (grequests.get(u, headers= header) for u in urls)
         response = grequests.map(request_data)
         self.dataObject_transactive = json.loads(response[0].text)
@@ -182,7 +183,7 @@ class GetTransactiveAgent(Agent):
                         "state": self.new_state
                     })
                 # print(jsonMsg)
-                header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+                header = {'Content-Type': 'application/json' ,'x-ha-access':self.password}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print("Energy efficiency for peak period has been changed")
             except ValueError:
@@ -226,7 +227,7 @@ class GetTransactiveAgent(Agent):
                         },
                         "state": self.new_state
                     })
-                header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+                header = {'Content-Type': 'application/json' ,'x-ha-access':self.password}
                 # print(jsonMsg)
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print("Energy efficiency for peak period has been changed")

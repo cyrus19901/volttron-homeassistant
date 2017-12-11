@@ -85,6 +85,7 @@ class TransactiveAgent(Agent):
         super(TransactiveAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self.url = self.config['url']
+        self.password = self.config['password']
         self.deviceList = self.config['device_list']
         self.deviceDictionary={}
         self.energyPoint={}
@@ -171,7 +172,7 @@ class TransactiveAgent(Agent):
                         },
                         "state": self.new_state
                     })
-        header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+        header = {'Content-Type': 'application/json' ,'x-ha-access':self.password}
         requests.post(urlServices, data = jsonMsg, headers = header)  
 
     @PubSub.subscribe('pubsub', 'devices/all/')
@@ -189,7 +190,7 @@ class TransactiveAgent(Agent):
         ]
 
         counter =1
-        header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+        header = {'Content-Type': 'application/json' ,'x-ha-access':self.password}
         request_data = (grequests.get(u,headers=header) for u in urls)
         response = grequests.map(request_data)
         dataObject_transactive = json.loads(response[0].text) 
@@ -350,7 +351,7 @@ class TransactiveAgent(Agent):
                     },
                     "state": self.new_state
                 })
-            header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+            header = {'Content-Type': 'application/json' ,'x-ha-access':self.password}
             requests.post(urlServices, data = jsonMsg, headers = header)
             print("Transactive State has been changed")
         except ValueError:
@@ -370,7 +371,7 @@ class TransactiveAgent(Agent):
                         },
                         "state": self.new_state
                     })
-                header = {'Content-Type': 'application/json' ,'x-ha-access':'admin'}
+                header = {'Content-Type': 'application/json' ,'x-ha-access':self.password}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print("Connected Devices State has been changed")
             except ValueError:
@@ -403,7 +404,7 @@ class TransactiveAgent(Agent):
                         },
                         "state": self.new_state
                     })
-                header = {'Content-Type': 'application/json','x-ha-access':'admin'}
+                header = {'Content-Type': 'application/json','x-ha-access':self.password}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print(" Devices Statuses State has been changed")
                 gevent.sleep(60)
@@ -473,7 +474,7 @@ class TransactiveAgent(Agent):
                         },
                         "state": self.new_state
                     })
-                header = {'Content-Type': 'application/json','x-ha-access':'admin'}
+                header = {'Content-Type': 'application/json','x-ha-access':self.password}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print("Advanced Setting State has been changed")
             except ValueError:
@@ -490,7 +491,7 @@ class TransactiveAgent(Agent):
                         "attributes":device_dictionary,
                         "state": self.new_state
                     })
-                header = {'Content-Type': 'application/json','x-ha-access':'admin'}
+                header = {'Content-Type': 'application/json','x-ha-access':self.password}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print("Advanced Setting State has been changed")
             except ValueError:
