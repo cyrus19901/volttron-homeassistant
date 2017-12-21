@@ -1,6 +1,7 @@
 {
 	"devices": {
 		"AC1": {
+			"name": "Air Conditioner living space",
 			"settings": [{
 					"attributes": [{
 						"name": "temperature",
@@ -33,6 +34,7 @@
 			]
 		},
 		"AC2": {
+			"name": "Air Conditioner bedroom",
 			"settings": [{
 					"attributes": [{
 						"name": "temperature",
@@ -65,6 +67,7 @@
 			]
 		},
 		"EV": {
+			"name": "Electric Vehicle",
 			"settings": [{
 				"attributes": [{
 						"name": "start",
@@ -83,6 +86,7 @@
 			}]
 		},
 		"WH1": {
+			"name": "Water Heater",
 			"settings": [{
 					"attributes": [{
 						"name": "temperature",
@@ -113,5 +117,5 @@
 			]
 		}
 	},
-	"friendly_name": "User Settings"
+	"friendly_name": "Device Settings"
 }

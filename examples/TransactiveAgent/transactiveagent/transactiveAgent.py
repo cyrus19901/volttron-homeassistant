@@ -101,8 +101,8 @@ class TransactiveAgent(Agent):
         self.startTime= datetime.datetime.utcnow()
 
         self.future = self.startTime + timedelta(seconds=30,minutes=0)
-        self.energyDevicesStatusesDict={'series':[],'times':[],'time-format': 'h:mm a'}
-        self.powerDevicesStatusesDict={'series':[],'times':[],'time-format': 'h:mm a'}
+        self.energyDevicesStatusesDict={'series':{},'times':[],'time-format': 'h:mm a','step': 30}
+        self.powerDevicesStatusesDict={'series':{},'times':[],'time-format': 'h:mm a','step':30}
         self.entityId_transactive_component = 'transactive_home.transactive_home'
         self.entityId_connectedDevices_component = 'connected_devices.connected_devices'
         self.entityId_energyEfficiencyPeakPeriod_component = 'energy_efficiency.peak_period_energy_and_compensation'
@@ -117,7 +117,7 @@ class TransactiveAgent(Agent):
         cumulative_transactive = 0
         energySeries = {'actual':[],'historical':[],'transactive':[]}
         energySeries['actual'] = { 'color':'#FF7F50','label':'actual','line-style':'','points':[]}
-        energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'dash','points':[]}
+        energySeries['historical'] = { 'color':'#696969','label':'historical','line-style':'dot','points':[]}
         energySeries['transactive'] = { 'color':'ForestGreen','label':'transactive','line-style':'dash','points':[]}
         self.energyDict['series']= energySeries
         now = datetime.datetime.now()
@@ -135,7 +135,7 @@ class TransactiveAgent(Agent):
             data_historical = json.load(data_file)
             for i in data_historical:
                 try:
-                    cumulative_historical = cumulative_historical + float(i['Value - Real energy (Watt-hours)'])/1000
+                    cumulative_historical =  float(i['Value - Real energy (Watt-hours)'])/1000
                     self.energyDict['series']['historical']['points'].append(cumulative_historical)
                 except IndexError:
                      pass
@@ -145,7 +145,7 @@ class TransactiveAgent(Agent):
             data_transactive = json.load(data_file)
             for i in data_transactive:
                 try:
-                    cumulative_transactive = cumulative_transactive + float(i['Value - Real energy (Watt-hours)'])/1000
+                    cumulative_transactive =  float(i['Value - Real energy (Watt-hours)'])/1000
                     self.energyDict['series']['transactive']['points'].append(cumulative_transactive)
                 except IndexError:
                     pass
@@ -155,6 +155,7 @@ class TransactiveAgent(Agent):
 # Initiate the json in the beginning of the code
         for device_list in self.deviceList:
             device_json = {
+                    "name": device_list, 
                     "energy":0,
                     "flexibility":"high",
                     "participate": True,
@@ -208,7 +209,7 @@ class TransactiveAgent(Agent):
 
         with open('/home/yingying/Desktop/5.0RC/volttron/examples/TransactiveAgent/config_devices') as device_file: 
             device_dictionary = json.load(device_file)
-        self.ChangeUserSettings(device_dictionary)
+        self.ChangeDeviceSettings(device_dictionary)
         if (device_name in self.deviceList):
             if (topic == 'devices/all/'+ device_name +'/office/skycentrics'):
                 print(device_name)
@@ -219,22 +220,26 @@ class TransactiveAgent(Agent):
                         if (message[0]['InstantaneousElectricityConsumption']):
                             load_value = round(message[0]['InstantaneousElectricityConsumption'],2)
                         else :
-                            load_value = 0 
+                            load_value = 0
+
                         if (message[0]['TotalEnergyStorageCapacity']):
                             energy_value = round(message[0]['TotalEnergyStorageCapacity'],2)
                         else :
-                            energy_value = 0 
-                        self.populateDict(device_name,energy_value,load_value)
+                            energy_value = 0
+                        # self.populateDict(device_name,energy_value,load_value)
 
                     else :
                         load_value = float(dataObject_connected['attributes']['devices'][str(device)]['power'])
                         energy_value = float(dataObject_connected['attributes']['devices'][str(device)]['energy'])
-                        self.populateDict(device,energy_value,load_value)
+                        self.energyPoint[str(device)].append(energy_value)
+                        self.powerPoint[str(device)].append(load_value)
+                        # self.populateDict(device,energy_value,load_value)
 
                     flexibility = dataObject_connected['attributes']['devices'][str(device)]['flexibility']
                     participation = dataObject_connected['attributes']['devices'][str(device)]['participate']
                     reset = dataObject_connected['attributes']['devices'][str(device)]['reset']
                     device_json = {
+                        "name":str(device),
                         "energy":energy_value,
                         "flexibility":flexibility,
                         "participate": participation,
@@ -243,10 +248,28 @@ class TransactiveAgent(Agent):
                         "zone_max":zone_max,
                         "zone_min":zone_min
                         }
+                    devicesEnergyStatus_json = {
+                        "points": self.energyPoint[str(device_name)]
+                    }
+                    devicesPowerStatus_json = {
+                        "points": self.powerPoint[str(device_name)]
+                    }
+                    self.devicePowerStausesDict[device_name] = devicesPowerStatus_json
+                    self.deviceEnergyStausesDict[device_name] = devicesEnergyStatus_json
+                    if (len(self.deviceEnergyStausesDict[device_name]) == 11):     
+                        del (self.deviceEnergyStausesDict[device_name][0])      
+                    if (len(self.devicePowerStausesDict[device_name]) == 11):       
+                        del (self.devicePowerStausesDict[device_name][0])       
+                    self.energyDevicesStatusesDict['series']= self.deviceEnergyStausesDict      
+                    self.powerDevicesStatusesDict['series']= self.devicePowerStausesDict
+                    print("*****************")
+                    print(self.energyDevicesStatusesDict['series'])
+                    print("======================")
+                    print(self.deviceEnergyStausesDict)
                     self.deviceDictionary[device]= device_json
                     totalEnergy += energy_value
                     totalPower += load_value
-                self.ChangeConnectedDevicesState(self.deviceDictionary)
+                
                 self.energyDict['series']['actual']['line-style'] = ""
                 if (self.energyDict['series']['actual']['points'][self.count] == None):
                     self.energyDict['series']['actual']['points'][self.count] =round(totalEnergy,2)
@@ -260,48 +283,22 @@ class TransactiveAgent(Agent):
                 if (self.count == 50):
                     self.count=0
                 self.count = self.count + 1
-                gevent.sleep(60)
+                gevent.sleep(10)
+                self.ChangeConnectedDevicesState(self.deviceDictionary)
                 self.ChangeTransactiveState(round(totalEnergy,2),round(totalPower,2),energyDataPlot,flexibility,zone_max,zone_min)
                 self.startTime =datetime.datetime.utcnow()
+                if (datetime.datetime.utcnow() >= self.future):
+                    self.setTime(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict,timestamp)
 
-
-    def populateDict(self,device,energy_value,load_value):
-        now = datetime.datetime.now()
-        timestamp = now.isoformat()
-        self.energyPoint[str(device)].append(energy_value)
-        self.powerPoint[str(device)].append(load_value)
-        devicesEnergyStatus_json = {
-            "points": self.energyPoint[str(device)]
-            }
-        devicesPowerStatus_json = {
-            "points": self.powerPoint[str(device)]
-            }
-        self.devicePowerStausesDict[device] = devicesPowerStatus_json
-        self.deviceEnergyStausesDict[device] = devicesEnergyStatus_json
-        self.energyDevicesStatusesDict['series']= self.deviceEnergyStausesDict
-        self.powerDevicesStatusesDict['series']= self.devicePowerStausesDict
-        self.energyDevicesStatusesDict['times'].append(timestamp)
-        self.powerDevicesStatusesDict['times'].append(timestamp)
-        if (len(self.deviceEnergyStausesDict[device])) == 11 or (len(self.deviceEnergyStausesDict[device])) == 11:
-            del (self.deviceEnergyStausesDict[device][0])
-            del (self.devicePowerStausesDict[device][0])
-        if (len(self.energyDevicesStatusesDict['times']) == 11) or (len(self.powerDevicesStatusesDict['times']) == 11):
-            del (self.energyDevicesStatusesDict['times'][0])
-            del (self.powerDevicesStatusesDict['times'][0])
-        self.ChangeDeviceStatuses(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict)
-        # if ((datetime.datetime.utcnow()) >= self.future):
-        #     self.setTime(self.energyDevicesStatusesDict,self.powerDevicesStatusesDict,timestamp)
-
-
-    # def setTime(self,energyDevicesStatusesDict,powerDevicesStatusesDict,timestamp):
-    #     energyDevicesStatusesDict['times'].append(timestamp)
-    #     powerDevicesStatusesDict['times'].append(timestamp)
-    #     # if (len(energyDevicesStatusesDict['times']) == 11):
-    #     #     del (energyDevicesStatusesDict['times'][0])
-    #     # if (len(powerDevicesStatusesDict['times']) == 11):
-    #     #     del (powerDevicesStatusesDict['times'][0])
-    #     self.future = datetime.datetime.utcnow() + timedelta(seconds=10,minutes=0)
-    #     self.ChangeDeviceStatuses(energyDevicesStatusesDict,powerDevicesStatusesDict)
+    def setTime(self,energyDevicesStatusesDict,powerDevicesStatusesDict,timestamp):
+        energyDevicesStatusesDict['times'].append(timestamp)
+        powerDevicesStatusesDict['times'].append(timestamp)
+        if (len(energyDevicesStatusesDict['times']) == 11):
+            del (energyDevicesStatusesDict['times'][0])
+        if (len(powerDevicesStatusesDict['times']) == 11):
+            del (powerDevicesStatusesDict['times'][0])
+        self.future = datetime.datetime.utcnow() + timedelta(seconds=30,minutes=0)
+        self.ChangeDeviceStatuses(energyDevicesStatusesDict,powerDevicesStatusesDict)
 
     def ChangeTransactiveState(self,overall_energy,overall_power,energyDataPlot,flexibility,zone_max,zone_min):
 
@@ -407,11 +404,10 @@ class TransactiveAgent(Agent):
                 header = {'Content-Type': 'application/json','x-ha-access':self.password}
                 requests.post(urlServices, data = jsonMsg, headers = header)
                 print(" Devices Statuses State has been changed")
-                gevent.sleep(60)
             except ValueError:
                     pass
 
-    def ChangeAdvancedSettings(self,powerSavingValue,energySavingValue,savingStartTime,savingEndTime,timePeriodStart,timePeriodEnd,incentives):
+    def ChangeUtilitySettings(self,powerSavingValue,energySavingValue,savingStartTime,savingEndTime,timePeriodStart,timePeriodEnd,incentives):
 
             if self.entityId_advancedSetting_component is None:
                 return
@@ -439,7 +435,7 @@ class TransactiveAgent(Agent):
                             "timePeriodStart" : {
                                 "value": timePeriodStart
                             },
-                            "friendly_name":"Advanced Settings",
+                            "friendly_name":"Utility Settings",
                             "time_of_use_pricing": {
                                 "label":"Time of use pricing",
                                  "list": [
@@ -479,7 +475,7 @@ class TransactiveAgent(Agent):
                 print("Advanced Setting State has been changed")
             except ValueError:
                     pass
-    def ChangeUserSettings(self,device_dictionary):
+    def ChangeDeviceSettings(self,device_dictionary):
 
             if self.entityId_user_settings_component is None:
                 return
